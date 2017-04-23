@@ -65,7 +65,6 @@ $ wget -q -O - http://localhost:4343 --post-file=../test.txt
 #### output
 ```
 9vi
-2017-04-23 13:43:32 URL:http://localhost:4343/ [4/4] -> "-" [1]
 ```
 
 The server response, `9vi` is a File ID to get `../test.txt`
