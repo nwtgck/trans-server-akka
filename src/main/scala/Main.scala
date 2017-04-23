@@ -46,7 +46,7 @@ object Main {
     for {
       // Run the HTTP server
       _ <- Http().bindAndHandle(route, HOST, port)
-      _ <- Future.successful{print(s"Listenning on ${port}...")}
+      _ <- Future.successful{print(s"Listening on ${port}...")}
     } yield ()
   }
 
