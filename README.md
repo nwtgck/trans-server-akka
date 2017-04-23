@@ -41,12 +41,37 @@ The following example is sending `../test.txt`
 
 ```
 $ curl http://localhost:4343 --data-binary @../test.txt
+```
+
+#### output
+```
 ab2
 ```
 
 The server response, `ab2` is a File ID to get `../test.txt`
 
-### Way2 - wc & cat & nc
+
+### Way2 - wget
+
+The following example is sending `../test.txt`
+
+```sh
+$ wget -q -O - http://localhost:4343 --post-file=../test.txt
+```
+
+* `-q` is for non-progress bar
+* `-O -` is to output STDOUT  
+
+#### output
+```
+9vi
+2017-04-23 13:43:32 URL:http://localhost:4343/ [4/4] -> "-" [1]
+```
+
+The server response, `9vi` is a File ID to get `../test.txt`
+
+
+### Way3 - wc & cat & nc
 
 **This way is for a user which can't use `curl` command.**
 
@@ -56,6 +81,11 @@ The following example is sending `sounds.zip`.
 
 ```sh
 $ wc -c  < sounds.zip
+```
+
+
+##### output
+```
 1161257298 # Use it later
 ```
 
