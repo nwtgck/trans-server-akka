@@ -1,4 +1,4 @@
-# tras - Transmit a file anywhere
+# trans - Transmit a file anywhere
 
 ## What is this?
 
