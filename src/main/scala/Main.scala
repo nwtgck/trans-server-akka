@@ -9,6 +9,7 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.FileIO
 
 import scala.concurrent.Future
+import scala.util.Try
 
 /**
   * Created by Ryo on 2017/04/23.
@@ -20,6 +21,14 @@ object Main {
 
     // Import Settings
     import Setting._
+
+    // Decide port
+    val port: Int = args match {
+      case Array(portStr) =>
+        Try(portStr.toInt).getOrElse(DEFAULT_PORT)
+      case _ =>
+        DEFAULT_PORT
+    }
 
     implicit val system = ActorSystem("trans-server-actor-system")
     implicit val materializer = ActorMaterializer()
@@ -36,8 +45,8 @@ object Main {
 
     for {
       // Run the HTTP server
-      _ <- Http().bindAndHandle(route, HOST, PORT)
-      _ <- Future.successful{print(s"Listenning on ${PORT}...")}
+      _ <- Http().bindAndHandle(route, HOST, port)
+      _ <- Future.successful{print(s"Listenning on ${port}...")}
     } yield ()
   }
 
