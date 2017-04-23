@@ -7,11 +7,29 @@ Sending a file and getting a file via HTTP
  
 ## How to run the server
 
+### Way1 - sbt "run-main ..."
 
 The following example is running on 80 port.
 ```sh
 $ cd <this-project>
 $ sbt "run-main Main 80"
+```
+
+### Way2 - Making a jar
+
+
+#### 1. Making a jar
+
+It takes a time
+```sh
+$ cd <this-project>
+$ sbt assembly
+```
+
+#### 2. Run the jar
+
+```sh
+$ java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80
 ```
 
 
