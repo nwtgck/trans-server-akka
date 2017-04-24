@@ -1,8 +1,10 @@
-import java.io.File
+import java.io.{File, FileInputStream, InputStream}
 import java.nio.file.StandardOpenOption
+import java.security.{KeyStore, SecureRandom}
+import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
+import akka.http.scaladsl.{ConnectionContext, Http, HttpsConnectionContext}
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Route
@@ -23,12 +25,15 @@ object Main {
     // Import Settings
     import Setting._
 
-    // Decide port
-    val port: Int = args match {
-      case Array(portStr) =>
-        Try(portStr.toInt).getOrElse(DEFAULT_PORT)
+    // Decide ports
+    val (httpPort: Int, httpsPort: Int) = args match {
+      case Array(httpPortStr, httpsPortStr) =>
+        (
+          Try(httpPortStr.toInt).getOrElse(DEFAULT_HTTP_PORT),
+          Try(httpsPortStr.toInt).getOrElse(DEFAULT_HTTPS_PORT)
+        )
       case _ =>
-        DEFAULT_PORT
+        (DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT)
     }
 
     implicit val system = ActorSystem("trans-server-actor-system")
@@ -44,10 +49,15 @@ object Main {
       }
     }
 
+    // Generate a HttpsConnectionContext
+    val httpsConnectionContext: HttpsConnectionContext = generateHttpsConnectionContext()
+
     for {
       // Run the HTTP server
-      _ <- Http().bindAndHandle(route, HOST, port)
-      _ <- Future.successful{print(s"Listening on ${port}...")}
+      _ <- Http().bindAndHandle(route, HOST, httpPort)
+      _ <- Http().bindAndHandle(route, HOST, httpsPort, connectionContext = httpsConnectionContext)
+      _ <- Future.successful{println(s"Listening HTTP  on ${httpPort}...")}
+      _ <- Future.successful{println(s"Listening HTTPS on ${httpsPort}...")}
     } yield ()
   }
 
@@ -79,7 +89,7 @@ object Main {
 
       // Generate File ID and storeFilePath
       val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
-      
+
       // Get a file from client and store it
       // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
       withoutSizeLimit {
@@ -165,5 +175,37 @@ object Main {
       candidates(idx)
     }
     i.mkString
+  }
+
+
+  /**
+    * Generate a HttpsConnectionContext
+    *
+    * hint from: http://doc.akka.io/docs/akka-http/current/scala/http/server-side-https-support.html
+    * @return
+    */
+  def generateHttpsConnectionContext(): HttpsConnectionContext = {
+    import Setting._
+
+    // Manual HTTPS configuration
+    val password: Array[Char] = KEY_STORE_PASSWORD.toCharArray // do not store passwords in code, read them from somewhere safe!
+
+    val ks: KeyStore = KeyStore.getInstance("jks")
+    val keystore: InputStream = new FileInputStream(KEY_STORE_PATH)
+
+    require(keystore != null, "Keystore required!")
+    ks.load(keystore, password)
+
+    val keyManagerFactory: KeyManagerFactory = KeyManagerFactory.getInstance("SunX509")
+    keyManagerFactory.init(ks, password)
+
+    val tmf: TrustManagerFactory = TrustManagerFactory.getInstance("SunX509")
+    tmf.init(ks)
+
+    val sslContext: SSLContext = SSLContext.getInstance("TLS")
+    sslContext.init(keyManagerFactory.getKeyManagers, tmf.getTrustManagers, new SecureRandom)
+    val httpsConnectionContext: HttpsConnectionContext = ConnectionContext.https(sslContext)
+
+    httpsConnectionContext
   }
 }
