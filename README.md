@@ -12,13 +12,21 @@ Sending a file and getting a file via HTTP
 The following example is running on 80 port.
 ```sh
 $ cd <this-project>
+$ ./make-keystore.sh
 $ sbt "run-main Main 80"
 ```
 
 ### Way2 - Making a jar
 
+#### 1. Make a keystore
 
-#### 1. Making a jar
+```sh
+$ cd <this-project>
+$ ./make-keystore.sh
+```
+
+
+#### 2. Make a jar
 
 It takes a time
 ```sh
@@ -26,7 +34,7 @@ $ cd <this-project>
 $ sbt assembly
 ```
 
-#### 2. Run the jar
+#### 3. Run the jar
 
 ```sh
 $ java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80
@@ -40,7 +48,7 @@ $ java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80
 The following example is sending `../test.txt`
 
 ```
-$ curl http://localhost:4343 --data-binary @../test.txt
+$ curl http://localhost:8181 --data-binary @../test.txt
 ```
 
 #### output
@@ -56,7 +64,7 @@ The server response, `ab2` is a File ID to get `../test.txt`
 The following example is sending `../test.txt`
 
 ```sh
-$ wget -q -O - http://localhost:4343 --post-file=../test.txt
+$ wget -q -O - http://localhost:8181 --post-file=../test.txt
 ```
 
 * `-q` is for non-progress bar
@@ -127,7 +135,7 @@ Content-Length: 4
 ### Way1 - wget
 
 ```sh
-$ wget http://localhost:4343/ab2
+$ wget http://localhost:8181/ab2
 ```
 
 `ab2` is a File ID.
@@ -136,7 +144,7 @@ $ wget http://localhost:4343/ab2
 
 
 ```sh
-$ curl http://localhost:4343/ab2 > test.txt
+$ curl http://localhost:8181/ab2 > test.txt
 ```
 
 `ab2` is a File ID.
@@ -144,6 +152,6 @@ $ curl http://localhost:4343/ab2 > test.txt
 
 ### Way3 - Using a Browser
 
-Access to `http://localhost:4343/ab2`
+Access to `http://localhost:8181/ab2`
 
 `ab2` is a File ID.
