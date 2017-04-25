@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-#/bin/sh
+#!/bin/bash
 
 # Generate a keystore in current working directory
 # from: https://www.glamenv-septzen.net/view/1075
@@ -10,7 +9,12 @@ ALIAS=testkey
 DNAME="cn=trans, ou=trans, o=trans, l=Japan, st=Tokyo, c=JP"
 CERT_PEM=testkey.pem
 
-rm -i $KEYSTORE
+
+# $KEYSTORE found
+if [ -e $KEYSTORE ]; then
+    # rm with confirmation
+    rm -i $KEYSTORE
+fi
 
 keytool -J-Dfile.encoding=UTF-8 \
   -keystore $KEYSTORE \
