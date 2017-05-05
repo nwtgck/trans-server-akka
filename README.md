@@ -3,8 +3,8 @@
 ## What is this?
 
 Sending a file and getting a file via HTTP
- 
- 
+
+
 ## How to run the server
 
 ### Way1 - sbt "run-main ..."
@@ -40,6 +40,15 @@ $ sbt assembly
 $ java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80
 ```
 
+## How to run the server on Docker
+
+```sh
+# In host machine
+$ git clone <this-project-url>
+$ cd <this-project>
+$ ./make-keystore.bash
+$ docker run -itd -p 80:80 -p 443:443 -v $PWD:/trans nwtgck/java:8 sh -c 'cd /trans && java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80 443'
+```
 
 ## How to send a file to the server
 
@@ -108,12 +117,12 @@ Content-Length: 1161257298
 Don't forget the end of `'\n'`
 
  #### 3. Send a file by HTTP request
- 
- 
+
+
 ```
 $ cat header.txt sounds.zip | nc localhost 4343
 ```
- 
+
 
  The response is bellow.
 ```
@@ -129,7 +138,7 @@ Content-Length: 4
 
 `6oz` is FILE ID.
 
- 
+
 ## How to get a file from the server
 
 ### Way1 - wget
