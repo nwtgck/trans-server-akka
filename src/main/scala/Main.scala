@@ -136,9 +136,11 @@ object Main {
 
       // File exists
       if (file.exists()) {
-        complete(
-          HttpEntity.fromPath(ContentTypes.NoContentType, file.toPath)
-        )
+        withRangeSupport { // Range support for `pget`
+          complete(
+            HttpEntity.fromPath(ContentTypes.NoContentType, file.toPath)
+          )
+        }
       } else {
         complete(StatusCodes.NotFound, s"File ID '${fileId}' not found\n")
       }
