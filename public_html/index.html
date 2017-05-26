@@ -24,7 +24,7 @@
         <h2>Command line usage</h2>
         <h3>Send with wget</h3>
         <code>
-            wget -q -O - {{location.protocol}}//{{location.hostname}}{{(location.port == 80? '': ':'+location.port)}}/ --post-file=./test.txt
+            wget -q -O - {{location.protocol}}//{{location.hostname}}{{(location.port == 80 || location.port == '' ? '': ':'+location.port)}}/ --post-file=./test.txt
         </code>
         <ul>
             <li>"./text.txt" is a file you want send</li>
@@ -34,7 +34,7 @@
 
         <h3>Get with wget</h3>
         <code>
-            wget {{location.protocol}}//{{location.hostname}}{{(location.port == 80? '': ':'+location.port)}}/ab2
+            wget {{location.protocol}}//{{location.hostname}}{{(location.port == 80 || location.port == '' ? '': ':'+location.port)}}/ab2
         </code>
         <ul>
             <li>"ab2" is a file ID, which is generated after sending</li>
