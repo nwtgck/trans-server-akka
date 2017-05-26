@@ -1,14 +1,46 @@
 <!DOCTYPE html>
-<html>
+<html ng-app="trans">
 <head>
     <meta charset="utf-8">
     <title>trans - Transmit files</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
+    <script>
+        angular.module('trans', [])
+            .controller('cuiExplainCtrl', ["$scope", function(scope){
+                scope.location = window.location;
+            }]);
+    </script>
 </head>
 <body>
     <h1>trans</h1>
+    <h2>Send from browser</h2>
     <form action="/multipart" method="post" enctype="multipart/form-data">
         <input type="file" name="input_file" multiple="multiple">
         <input type="submit" value="submit">
     </form>
+    <hr/>
+
+    <div ng-controller="cuiExplainCtrl">
+        <h2>Command line usage</h2>
+        <h3>Send with wget</h3>
+        <code>
+            wget -q -O - {{location.protocol}}//{{location.hostname}}{{(location.port == 80? '': ':'+location.port)}}/ --post-file=./test.txt
+        </code>
+        <ul>
+            <li>"./text.txt" is a file you want send</li>
+            <li>"-q": Disable progress bar</li>
+            <li>"-O -": outputs /dev/stdout </li>
+        </ul>
+
+        <h3>Get with wget</h3>
+        <code>
+            wget {{location.protocol}}//{{location.hostname}}{{(location.port == 80? '': ':'+location.port)}}/ab2
+        </code>
+        <ul>
+            <li>"ab2" is a file ID, which is generated after sending</li>
+        </ul>
+
+        <hr/>
+    </div>
 </body>
 </html>
