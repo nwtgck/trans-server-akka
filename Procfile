@@ -1,0 +1,1 @@
+web: target/universal/stage/bin/trans-server-akka 80 443
