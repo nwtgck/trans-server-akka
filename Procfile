@@ -1,1 +1,1 @@
-web: ./make-keystore.bash && target/universal/stage/bin/trans-server-akka 80 443
+web: ./make-keystore.bash && target/universal/stage/bin/trans-server-akka $PORT 6000
