@@ -164,3 +164,16 @@ $ curl http://localhost:8181/ab2 > test.txt
 Access to `http://localhost:8181/ab2`
 
 `ab2` is a File ID.
+
+
+## How to deploy on Heroku
+
+```sh
+$ git clone <this repo uri>
+$ cd <this repo>
+$ heroku create
+$ git push heroku master
+# Done !
+# You can go to https://<app name>.herokuapp.com/
+```
+
