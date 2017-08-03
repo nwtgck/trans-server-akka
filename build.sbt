@@ -15,4 +15,5 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-http-jackson" % "10.0.5",
   "com.typesafe.akka" %% "akka-http-xml" % "10.0.5"
 )
-    
+
+enablePlugins(JavaAppPackaging)
