@@ -37,7 +37,7 @@ $ sbt assembly
 #### 3. Run the jar
 
 ```sh
-$ java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80
+$ sudo java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80 443
 ```
 
 ## How to run the server on Docker
@@ -46,6 +46,7 @@ $ java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80
 # In host machine
 $ git clone <this-project-url>
 $ cd <this-project>
+$ sbt assembly
 $ ./make-keystore.bash
 $ docker run -itd -p 80:80 -p 443:443 -v $PWD:/trans nwtgck/java:8 sh -c 'cd /trans && java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80 443'
 ```
