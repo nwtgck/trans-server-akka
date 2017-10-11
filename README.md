@@ -1,8 +1,6 @@
 # trans - Transmit a file anywhere
 
-## What is this?
-
-Sending a file and getting a file via HTTP
+Transmit files by using only standard commands
 
 
 ## How to run the server
@@ -12,7 +10,7 @@ Sending a file and getting a file via HTTP
 The following example is running on 80 port.
 ```sh
 $ cd <this-project>
-$ ./make-keystore.sh
+$ ./make-keystore.bash
 $ sbt "run-main Main 80"
 ```
 
@@ -22,7 +20,7 @@ $ sbt "run-main Main 80"
 
 ```sh
 $ cd <this-project>
-$ ./make-keystore.sh
+$ ./make-keystore.bash
 ```
 
 
