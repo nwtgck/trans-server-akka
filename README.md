@@ -1,6 +1,6 @@
 # trans - Transmit a file anywhere
 
-Transmit files by using only standard commands
+Transmit files by using only standard commands, `wget` or `curl`
 
 
 ## How to run the server
