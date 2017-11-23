@@ -1,0 +1,9 @@
+/.git
+/.gitignore
+
+/.idea
+/project/target
+/project/project
+/target
+/file_db
+*.keystore
