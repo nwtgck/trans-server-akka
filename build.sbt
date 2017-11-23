@@ -4,6 +4,7 @@ version := "1.0.0"
 
 scalaVersion := "2.11.8"
 
+assemblyJarName in assembly := { s"${name.value}.jar" }
 
 libraryDependencies ++= Seq(
 

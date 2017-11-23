@@ -1,4 +1,3 @@
-# TODO NOT to use latest
 FROM nwtgck/sbt:ubuntu16
 
 LABEL maintainer="Ryo Ota <nwtgck@gmail.com>"
@@ -16,4 +15,4 @@ RUN ./make-keystore.bash
 RUN sbt assembly
 
 # Run the server
-ENTRYPOINT ["java", "-jar", "target/scala-2.11/trans-server-akka-assembly-*.jar", "80", "443"]
+ENTRYPOINT ["/usr/bin/java", "-jar", "target/scala-2.11/trans-server-akka.jar", "80", "443"]
