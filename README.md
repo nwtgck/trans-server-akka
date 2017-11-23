@@ -4,7 +4,7 @@ Transmit files by using only standard commands, `curl` or `wget`
 
 ## Main features
 
-* Send/Get via standard command `curl` or `wget` (You don't have install any command!)
+* Send/Get via only standard command, `curl` or `wget` (You don't have install any command!)
 * Send/Get on your browser 
 
 ## How to run the server
