@@ -6,13 +6,17 @@ import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.{ConnectionContext, Http, HttpsConnectionContext}
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
-import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.{HttpEntity, ContentTypes, Multipart, StatusCodes}
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, IOResult}
 import akka.stream.scaladsl.{FileIO, Source}
+import akka.util.ByteString
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Try}
+import slick.driver.H2Driver.api._
+
+import scala.concurrent.duration.DurationInt
 
 /**
   * Created by Ryo on 2017/04/23.
@@ -36,6 +40,12 @@ object Main {
         (DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT)
     }
 
+//     Create a memory-base db
+//    val db = Database.forConfig("h2mem-trans")
+
+    // Create a file-base db
+    val db = Database.forConfig("h2file-trans")
+
     implicit val system = ActorSystem("trans-server-actor-system")
     implicit val materializer = ActorMaterializer()
     import concurrent.ExecutionContext.Implicits.global
@@ -53,19 +63,40 @@ object Main {
     val httpsConnectionContext: HttpsConnectionContext = generateHttpsConnectionContext()
 
     for {
+      // Create a table if not exist
+      _ <- Tables.createTablesIfNotExist(db)
+
       // Run the HTTP server
-      _ <- Http().bindAndHandle(route, HOST, httpPort)
-      _ <- Http().bindAndHandle(route, HOST, httpsPort, connectionContext = httpsConnectionContext)
+      _ <- Http().bindAndHandle(route(db), HOST, httpPort)
+      _ <- Http().bindAndHandle(route(db), HOST, httpsPort, connectionContext = httpsConnectionContext)
       _ <- Future.successful{println(s"Listening HTTP  on ${httpPort}...")}
       _ <- Future.successful{println(s"Listening HTTPS on ${httpsPort}...")}
     } yield ()
+  }
+
+  def storeBytes(db: Database, byteSource: Source[ByteString, Any])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[String] = {
+    // Generate File ID and storeFilePath
+    val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
+
+    for {
+      // Store the file
+      ioResult   <- byteSource.runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
+      // Store to the database
+      // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
+      _          <- db.run(Tables.allFileStores += Tables.FileStore(fileId, new java.sql.Timestamp(System.currentTimeMillis()), deadline = new java.sql.Timestamp(System.currentTimeMillis() + 10 * 1000))) // TODO Change default store-duration is 10 sec (too short) and hard coding
+      fileStores <- db.run(Tables.allFileStores.result)
+      _ <- Future.successful {
+        println(s"IOResult: ${ioResult}")
+        println(s"File Stores: ${fileStores}") // TODO REMOVE (THIS is for debuging)
+      }
+    } yield fileId
   }
 
 
   /**
     * Http Server's Routing
     */
-  def route(implicit materializer: ActorMaterializer): Route = {
+  def route(db: Database)(implicit materializer: ActorMaterializer): Route = {
     // for routing DSL
     import akka.http.scaladsl.server.Directives._
     // for using XML
@@ -94,10 +125,14 @@ object Main {
       // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
       withoutSizeLimit {
         extractDataBytes { bytes =>
-          val finshiedWriting = bytes.runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
-          onComplete(finshiedWriting) { ioResult =>
-            println(ioResult)
-            complete(s"${fileId}\n")
+          // Store bytes to DB
+          val storeFut: Future[String] = storeBytes(db, bytes)
+
+          onComplete(storeFut){
+            case Success(fileId) =>
+              complete(s"${fileId}\n")
+            case _ =>
+              complete("Upload failed") // TODO Change response
           }
         }
       }
@@ -109,12 +144,10 @@ object Main {
         // Generate File ID and storeFilePath
         val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
         // Get data bytes
-        val bytes = bodyPart.entity.dataBytes
-        for {
-          // Store the file
-          ioResult <- bytes.runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
-          _ <- Future.successful {println(s"IOResult: ${ioResult}")}
-        } yield fileId
+        val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
+
+        // Store bytes to DB
+        storeBytes(db, bytes)
       }
 
       val fileIdsFut: Future[List[String]] = fileIdsSource.runFold(List.empty[String])((l, s) => l :+ s)
@@ -134,15 +167,32 @@ object Main {
 
       val file = new File(gettingFilePath)
 
-      // File exists
-      if (file.exists()) {
-        withRangeSupport { // Range support for `pget`
-          complete(
-            HttpEntity.fromPath(ContentTypes.NoContentType, file.toPath)
-          )
+      // For use `>=`
+      import com.github.nscala_time.time.OrderingImplicits._
+      val query = Tables.allFileStores.filter { fileStore => fileStore.fileId === fileId && fileStore.deadline >= new java.sql.Timestamp(System.currentTimeMillis()) }
+
+      val existsFileStoreFut: Future[Boolean] = for{
+        res <- db.run(query.result)
+        _  <- Future.successful{
+          println(res)
         }
-      } else {
-        complete(StatusCodes.NotFound, s"File ID '${fileId}' not found\n")
+        a <- db.run(query.exists.result)
+      } yield a
+
+      onComplete(existsFileStoreFut){
+        case Success(true) =>
+          // File exists
+          if (file.exists()) {
+            withRangeSupport { // Range support for `pget`
+              complete(
+                HttpEntity.fromPath(ContentTypes.NoContentType, file.toPath)
+              )
+            }
+          } else {
+            complete(StatusCodes.NotFound, s"File ID '${fileId}' is not found\n")
+          }
+        case _ =>
+          complete(StatusCodes.NotFound, s"File ID '${fileId}' is not found or expired\n")
       }
 
     }
