@@ -6,7 +6,7 @@ import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.{ConnectionContext, Http, HttpsConnectionContext}
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
-import akka.http.scaladsl.model.{HttpEntity, ContentTypes, Multipart, StatusCodes}
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import akka.http.scaladsl.server.Route
 import akka.stream.{ActorMaterializer, IOResult}
 import akka.stream.scaladsl.{FileIO, Source}
@@ -16,7 +16,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Try}
 import slick.driver.H2Driver.api._
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 /**
   * Created by Ryo on 2017/04/23.
@@ -74,7 +74,7 @@ object Main {
     } yield ()
   }
 
-  def storeBytes(db: Database, byteSource: Source[ByteString, Any])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[String] = {
+  def storeBytes(db: Database, byteSource: Source[ByteString, Any], duration: FiniteDuration)(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[String] = {
 
     import TimestampUtil.RichTimestampImplicit._
 
@@ -85,18 +85,39 @@ object Main {
       // Store the file
       ioResult   <- byteSource.runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
       // Create file store object
-      fileStore = Tables.FileStore(fileId=fileId, createdAt=TimestampUtil.now(), deadline = TimestampUtil.now + 10.seconds) // TODO Change default store-duration is 10 sec (too short) and hard coding
+      fileStore = Tables.FileStore(fileId=fileId, createdAt=TimestampUtil.now(), deadline = TimestampUtil.now + duration) // TODO Set the limitation of duration (big duration is not good)
       // Store to the database
       // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
       _          <- db.run(Tables.allFileStores += fileStore)
       fileStores <- db.run(Tables.allFileStores.result)
       _ <- Future.successful {
         println(s"IOResult: ${ioResult}")
-        println(s"File Stores: ${fileStores}") // TODO REMOVE (THIS is for debuging)
       }
     } yield fileId
   }
 
+
+  /**
+    * Convert a string to duration [sec]
+    * @param str
+    * @return duration [sec]
+    */
+  private def strToDurationSecOpt(str: String): Option[Int] = {
+    val reg = """^(\d+)([dhms])$""".r
+    str match {
+      case reg(lengthStr, unitStr) =>
+        Try {
+          val length: Int = lengthStr.toInt
+          unitStr match {
+            case "s" => length
+            case "m" => length * 60
+            case "h" => length * 60 * 60
+            case "d" => length * 60 * 60 * 24
+          }
+        }.toOption
+      case _ => None
+    }
+  }
 
   /**
     * Http Server's Routing
@@ -122,22 +143,36 @@ object Main {
     } ~
     // "Post /" for client-sending a file
     (post & pathSingleSlash) {
+      parameter('duration.?) { (durationStrOpt: Option[String]) =>
 
-      // Generate File ID and storeFilePath
-      val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
+        println(s"durationStrOpt: ${durationStrOpt}")
 
-      // Get a file from client and store it
-      // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
-      withoutSizeLimit {
-        extractDataBytes { bytes =>
-          // Store bytes to DB
-          val storeFut: Future[String] = storeBytes(db, bytes)
+        // Get duration
+        val duration: FiniteDuration =
+          (for{
+            durationStr <- durationStrOpt
+            durationSec <- strToDurationSecOpt(durationStr)
+          } yield durationSec.seconds)
+          .getOrElse(DefaultStoreDuration)
+        println(s"Duration: ${duration}")
 
-          onComplete(storeFut){
-            case Success(fileId) =>
-              complete(s"${fileId}\n")
-            case _ =>
-              complete("Upload failed") // TODO Change response
+
+        // Generate File ID and storeFilePath
+        val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
+
+        // Get a file from client and store it
+        // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
+        withoutSizeLimit {
+          extractDataBytes { bytes =>
+            // Store bytes to DB
+            val storeFut: Future[String] = storeBytes(db, bytes, duration)
+
+            onComplete(storeFut){
+              case Success(fileId) =>
+                complete(s"${fileId}\n")
+              case _ =>
+                complete("Upload failed") // TODO Change response
+            }
           }
         }
       }
@@ -145,26 +180,37 @@ object Main {
     // "Post /" for client-sending a file
     (post & path("multipart") & entity(as[Multipart.FormData])) { formData =>
 
-      val fileIdsSource: Source[String, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
-        // Generate File ID and storeFilePath
-        val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
-        // Get data bytes
-        val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
+      parameter('duration.?) { (durationStrOpt: Option[String]) =>
 
-        // Store bytes to DB
-        storeBytes(db, bytes)
+        // Get duration
+        val duration: FiniteDuration =
+          (for{
+            durationStr <- durationStrOpt
+            durationSec <- strToDurationSecOpt(durationStr)
+          } yield durationSec.seconds)
+            .getOrElse(DefaultStoreDuration)
+        println(s"Duration: ${duration}")
+
+        val fileIdsSource: Source[String, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
+          // Generate File ID and storeFilePath
+          val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
+          // Get data bytes
+          val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
+
+          // Store bytes to DB
+          storeBytes(db, bytes, duration)
+        }
+
+        val fileIdsFut: Future[List[String]] = fileIdsSource.runFold(List.empty[String])((l, s) => l :+ s)
+
+
+        onComplete(fileIdsFut) {
+          case Success(fileIds) =>
+            complete(fileIds.mkString("\n"))
+          case _ =>
+            complete("Upload failed") // TODO Change response
+        }
       }
-
-      val fileIdsFut: Future[List[String]] = fileIdsSource.runFold(List.empty[String])((l, s) => l :+ s)
-
-
-      onComplete(fileIdsFut) {
-        case Success(fileIds) =>
-          complete(fileIds.mkString("\n"))
-        case _ =>
-          complete("Upload failed") // TODO Change response
-      }
-
     } ~
     // "Get /xyz" for client-getting the specified file
     (get & path(Remaining)) { fileId =>
@@ -172,17 +218,17 @@ object Main {
 
       val file = new File(gettingFilePath)
 
-      val query = Tables.allFileStores.filter { fileStore => fileStore.fileId === fileId && fileStore.deadline >= new java.sql.Timestamp(System.currentTimeMillis()) }
 
-      val existsFileStoreFut: Future[Boolean] = for{
-        res <- db.run(query.result)
-        _  <- Future.successful{
-          println(res)
-        }
-        a <- db.run(query.exists.result)
-      } yield a
-
+      // Check existence of valid(=not expired) file store
+      val existsFileStoreFut: Future[Boolean] =  db.run(
+        Tables.allFileStores
+          .filter(fileStore => fileStore.fileId === fileId && fileStore.deadline >= new java.sql.Timestamp(System.currentTimeMillis()) )
+          .exists
+          .result
+      )
       onComplete(existsFileStoreFut){
+
+        // If file is alive (not expired and exist)
         case Success(true) =>
           // File exists
           if (file.exists()) {
