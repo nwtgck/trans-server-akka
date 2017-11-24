@@ -75,15 +75,20 @@ object Main {
   }
 
   def storeBytes(db: Database, byteSource: Source[ByteString, Any])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[String] = {
+
+    import TimestampUtil.RichTimestampImplicit._
+
     // Generate File ID and storeFilePath
     val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
 
     for {
       // Store the file
       ioResult   <- byteSource.runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
+      // Create file store object
+      fileStore = Tables.FileStore(fileId=fileId, createdAt=TimestampUtil.now(), deadline = TimestampUtil.now + 10.seconds) // TODO Change default store-duration is 10 sec (too short) and hard coding
       // Store to the database
       // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
-      _          <- db.run(Tables.allFileStores += Tables.FileStore(fileId, new java.sql.Timestamp(System.currentTimeMillis()), deadline = new java.sql.Timestamp(System.currentTimeMillis() + 10 * 1000))) // TODO Change default store-duration is 10 sec (too short) and hard coding
+      _          <- db.run(Tables.allFileStores += fileStore)
       fileStores <- db.run(Tables.allFileStores.result)
       _ <- Future.successful {
         println(s"IOResult: ${ioResult}")
@@ -167,8 +172,6 @@ object Main {
 
       val file = new File(gettingFilePath)
 
-      // For use `>=`
-      import com.github.nscala_time.time.OrderingImplicits._
       val query = Tables.allFileStores.filter { fileStore => fileStore.fileId === fileId && fileStore.deadline >= new java.sql.Timestamp(System.currentTimeMillis()) }
 
       val existsFileStoreFut: Future[Boolean] = for{

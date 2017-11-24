@@ -4,13 +4,6 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object Tables {
   import slick.driver.H2Driver.api._
-  import com.github.nscala_time.time.Imports._
-  import com.github.nscala_time.time.Implicits._
-
-  object OriginalTypeImplicits{
-    implicit val dateTimeType = MappedColumnType.base[Datetime, Long]({dateTime => dateTime.millis}, { long => new Datetime(long) })
-  }
-  import OriginalTypeImplicits._
 
   val allFileStores = TableQuery[FileStores]
 
