@@ -11,11 +11,18 @@ import slick.driver.H2Driver.api._
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Success, Try}
+import scala.util.{Random, Success, Try}
 import Tables.OriginalTypeImplicits._
 
 
 class Core(db: Database, fileDbPath: String){
+
+
+  // Secure random generator
+  // (from: https://qiita.com/suin/items/bfff121c8481990e1507)
+  private val secureRandom: Random = new Random(new java.security.SecureRandom())
+
+
   def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int], idLengthOpt: Option[Int])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[FileId] = {
 
     import TimestampUtil.RichTimestampImplicit._
@@ -287,9 +294,8 @@ class Core(db: Database, fileDbPath: String){
   def generateRandomFileId(idLength: Int): String = {
     // 1 ~ 9 + 'a' ~ 'z'
     val candidates: Seq[String] = ((0 to 9) ++ ('a' to 'z')).map(_.toString)
-    val r = scala.util.Random // TODO Use secure random
     val i = (1 to idLength).map{_ =>
-      val idx = r.nextInt(candidates.length)
+      val idx = secureRandom.nextInt(candidates.length)
       candidates(idx)
     }
     i.mkString
