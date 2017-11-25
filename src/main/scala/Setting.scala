@@ -11,4 +11,5 @@ object Setting {
   val KEY_STORE_PATH       : String         = "trans.keystore"
   val KEY_STORE_PASSWORD   : String         = "changeit"
   val DefaultStoreDuration : FiniteDuration = 1.hour
+  val MaxStoreDuration     : FiniteDuration = 30.days
 }

@@ -81,11 +81,15 @@ object Main {
     // Generate File ID and storeFilePath
     val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
 
+    // Adjust duration (big duration is not good)
+    val adjustedDuration: FiniteDuration = duration.min(Setting.MaxStoreDuration)
+    println(s"adjustedDuration: ${adjustedDuration}")
+
     for {
       // Store the file
       ioResult   <- byteSource.runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
       // Create file store object
-      fileStore = Tables.FileStore(fileId=fileId, createdAt=TimestampUtil.now(), deadline = TimestampUtil.now + duration) // TODO Set the limitation of duration (big duration is not good)
+      fileStore = Tables.FileStore(fileId=fileId, createdAt=TimestampUtil.now(), deadline = TimestampUtil.now + adjustedDuration)
       // Store to the database
       // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
       _          <- db.run(Tables.allFileStores += fileStore)
