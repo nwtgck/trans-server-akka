@@ -1,6 +1,6 @@
 name := "trans-server-akka"
 
-version := "1.1.0"
+version := "1.1.1"
 
 scalaVersion := "2.11.8"
 
