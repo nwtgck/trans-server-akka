@@ -12,9 +12,11 @@ import slick.driver.H2Driver.api._
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Try}
+import Tables.OriginalTypeImplicits._
+
 
 class Core(db: Database, fileDbPath: String){
-  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[String] = {
+  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[FileId] = {
 
     import TimestampUtil.RichTimestampImplicit._
 
@@ -29,7 +31,7 @@ class Core(db: Database, fileDbPath: String){
       // Store the file
       ioResult   <- byteSource.runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
       // Create file store object
-      fileStore = Tables.FileStore(fileId=fileId, storePath=storeFilePath, createdAt=TimestampUtil.now(), deadline = TimestampUtil.now + adjustedDuration, nGetLimitOpt = nGetLimitOpt)
+      fileStore = FileStore(fileId=fileId, storePath=storeFilePath, createdAt=TimestampUtil.now(), deadline = TimestampUtil.now + adjustedDuration, nGetLimitOpt = nGetLimitOpt)
       // Store to the database
       // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
       _          <- db.run(Tables.allFileStores += fileStore)
@@ -114,11 +116,11 @@ class Core(db: Database, fileDbPath: String){
           withoutSizeLimit {
             extractDataBytes { bytes =>
               // Store bytes to DB
-              val storeFut: Future[String] = storeBytes(bytes, duration, nGetLimitOpt)
+              val storeFut: Future[FileId] = storeBytes(bytes, duration, nGetLimitOpt)
 
               onComplete(storeFut){
                 case Success(fileId) =>
-                  complete(s"${fileId}\n")
+                  complete(s"${fileId.value}\n")
                 case f =>
                   println(f)
                   complete("Upload failed") // TODO Change response
@@ -148,7 +150,7 @@ class Core(db: Database, fileDbPath: String){
           } yield nGetLimit
           println(s"nGetLimitOpt: ${nGetLimitOpt}")
 
-          val fileIdsSource: Source[String, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
+          val fileIdsSource: Source[FileId, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
             // Generate File ID and storeFilePath
             val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
             // Get data bytes
@@ -158,22 +160,25 @@ class Core(db: Database, fileDbPath: String){
             storeBytes(bytes, duration, nGetLimitOpt = None) // TODO nGetLimitOpt should be impled
           }
 
-          val fileIdsFut: Future[List[String]] = fileIdsSource.runFold(List.empty[String])((l, s) => l :+ s)
+          val fileIdsFut: Future[List[FileId]] = fileIdsSource.runFold(List.empty[FileId])((l, s) => l :+ s)
 
 
           onComplete(fileIdsFut) {
             case Success(fileIds) =>
-              complete(fileIds.mkString("\n"))
+              complete(fileIds.map(_.value).mkString("\n"))
             case _ =>
               complete("Upload failed") // TODO Change response
           }
         }
       } ~
       // "Get /xyz" for client-getting the specified file
-      (get & path(Remaining)) { fileId =>
+      (get & path(Remaining)) { fileIdStr =>
+
+        // Generate file ID instance
+        val fileId: FileId = FileId(fileIdStr)
 
         // Check existence of valid(=not expired) file store
-        val existsFileStoreFut: Future[Option[Tables.FileStore]] =  db.run(
+        val existsFileStoreFut: Future[Option[FileStore]] =  db.run(
           Tables.allFileStores
             .filter(fileStore =>  fileStore.fileId === fileId && isAliveFileStore(fileStore))
             .result
@@ -260,16 +265,16 @@ class Core(db: Database, fileDbPath: String){
     * Generate non-duplicated File ID and store path
     * @return
     */
-  def generateNoDuplicatedFiledIdAndStorePath(): (String, String) = {
-    var fileId: String = null
+  def generateNoDuplicatedFiledIdAndStorePath(): (FileId, String) = {
+    var fileIdStr: String = null
     var storeFilePath: String = null
 
     // Generate File ID and storeFilePath
     do {
-      fileId = generateRandomFileId()
-      storeFilePath = List(fileDbPath, fileId).mkString(File.separator)
+      fileIdStr = generateRandomFileId()
+      storeFilePath = List(fileDbPath, fileIdStr).mkString(File.separator)
     } while (new File(storeFilePath).exists())
-    return (fileId, storeFilePath)
+    return (FileId(fileIdStr), storeFilePath)
   }
 
   /**
