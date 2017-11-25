@@ -10,12 +10,28 @@ Transmit files by using only standard commands, `curl` or `wget`
 
 ## Main features
 
-* Send/Get via only standard command, `curl` or `wget` (You don't have install any command!)
-* Send/Get on your browser 
+* Send/Get via **only standard commands**, `curl` or `wget` (You don't have install any command!)
+* Send/Get **on your browser** 
+
+## Public Server on Heroku 
+
+https://trans-akka.herokuapp.com/
 
 ## How to run the server
 
-### Way1 - sbt "run-main ..."
+You can choose any ways you want bellow.
+
+### Way 1 - Run on Docker
+
+[![Docker Automated build](https://img.shields.io/docker/automated/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/) [![Docker Pulls](https://img.shields.io/docker/pulls/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/)
+
+```bash
+docker run -p 8080:80 nwtgck/trans-server-akka
+```
+
+Then you can go http://localhost:8080/
+
+### Way 2 - sbt "run-main ..."
 
 The following example is running on 80 port.
 ```sh
@@ -24,7 +40,7 @@ $ ./make-keystore.bash
 $ sbt "run-main Main 80"
 ```
 
-### Way2 - Making a jar
+### Way 3 - Making a jar
 
 #### 1. Make a keystore
 
@@ -48,24 +64,14 @@ $ sbt assembly
 $ sudo java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80 443
 ```
 
-## How to run a server on Docker
-
-[![Docker Automated build](https://img.shields.io/docker/automated/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/) [![Docker Pulls](https://img.shields.io/docker/pulls/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/)
-
-```bash
-docker run -p 8080:80 nwtgck/trans-server-akka
-```
-
-Then you can go http://localhost:8080/
-
 ## How to send a file to the server
 
-### Way1 - curl
+### Way 1 - curl
 
 The following example is sending `../test.txt`
 
 ```
-$ curl http://localhost:8181 --data-binary @../test.txt
+$ curl https://trans-akka.herokuapp.com/ --data-binary @../test.txt
 ```
 
 #### output
@@ -76,12 +82,12 @@ ab2
 The server response, `ab2` is a File ID to get `../test.txt`
 
 
-### Way2 - wget
+### Way 2 - wget
 
 The following example is sending `../test.txt`
 
 ```sh
-$ wget -q -O - http://localhost:8181 --post-file=../test.txt
+$ wget -q -O - https://trans-akka.herokuapp.com/ --post-file=../test.txt
 ```
 
 * `-q` is for non-progress bar
@@ -95,7 +101,7 @@ $ wget -q -O - http://localhost:8181 --post-file=../test.txt
 The server response, `9vi` is a File ID to get `../test.txt`
 
 
-### Way3 - wc & cat & nc
+### Way 3 - wc & cat & nc
 
 **This way is for a user which can't use `curl` command.**
 
@@ -149,27 +155,27 @@ Content-Length: 4
 
 ## How to get a file from the server
 
-### Way1 - wget
+### Way 1 - wget
 
 ```sh
-$ wget http://localhost:8181/ab2
+$ wget https://trans-akka.herokuapp.com/ab2
 ```
 
 `ab2` is a File ID.
 
-### Way2 - curl
+### Way 2 - curl
 
 
 ```sh
-$ curl http://localhost:8181/ab2 > test.txt
+$ curl https://trans-akka.herokuapp.com/ab2 > test.txt
 ```
 
 `ab2` is a File ID.
 
 
-### Way3 - Using a Browser
+### Way 3 - Using a Browser
 
-Access to `http://localhost:8181/ab2`
+Access to `https://trans-akka.herokuapp.com/ab2`
 
 `ab2` is a File ID.
 
