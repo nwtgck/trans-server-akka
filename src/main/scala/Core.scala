@@ -16,12 +16,20 @@ import Tables.OriginalTypeImplicits._
 
 
 class Core(db: Database, fileDbPath: String){
-  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[FileId] = {
+  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int], idLengthOpt: Option[Int])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[FileId] = {
 
     import TimestampUtil.RichTimestampImplicit._
 
+    // Get ID length
+    val idLength: Int =
+      idLengthOpt
+        .getOrElse(Setting.DefaultIdLength)
+        .max(Setting.MinIdLength)
+        .min(Setting.MaxIdLength)
+    println(s"idLength: ${idLength}")
+
     // Generate File ID and storeFilePath
-    val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
+    val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath(idLength)
 
     // Adjust duration (big duration is not good)
     val adjustedDuration: FiniteDuration = duration.min(Setting.MaxStoreDuration)
@@ -108,15 +116,12 @@ class Core(db: Database, fileDbPath: String){
           } yield nGetLimit
           println(s"nGetLimitOpt: ${nGetLimitOpt}")
 
-          // Generate File ID and storeFilePath
-          val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
-
           // Get a file from client and store it
           // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
           withoutSizeLimit {
             extractDataBytes { bytes =>
               // Store bytes to DB
-              val storeFut: Future[FileId] = storeBytes(bytes, duration, nGetLimitOpt)
+              val storeFut: Future[FileId] = storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt = None) // TODO impl None
 
               onComplete(storeFut){
                 case Success(fileId) =>
@@ -151,13 +156,11 @@ class Core(db: Database, fileDbPath: String){
           println(s"nGetLimitOpt: ${nGetLimitOpt}")
 
           val fileIdsSource: Source[FileId, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
-            // Generate File ID and storeFilePath
-            val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
             // Get data bytes
             val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
 
             // Store bytes to DB
-            storeBytes(bytes, duration, nGetLimitOpt = None) // TODO nGetLimitOpt should be impled
+            storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt = None) // TODO impl None
           }
 
           val fileIdsFut: Future[List[FileId]] = fileIdsSource.runFold(List.empty[FileId])((l, s) => l :+ s)
@@ -265,13 +268,13 @@ class Core(db: Database, fileDbPath: String){
     * Generate non-duplicated File ID and store path
     * @return
     */
-  def generateNoDuplicatedFiledIdAndStorePath(): (FileId, String) = {
+  def generateNoDuplicatedFiledIdAndStorePath(idLength: Int): (FileId, String) = {
     var fileIdStr: String = null
     var storeFilePath: String = null
 
     // Generate File ID and storeFilePath
     do {
-      fileIdStr = generateRandomFileId()
+      fileIdStr = generateRandomFileId(idLength)
       storeFilePath = List(fileDbPath, fileIdStr).mkString(File.separator)
     } while (new File(storeFilePath).exists())
     return (FileId(fileIdStr), storeFilePath)
@@ -281,11 +284,11 @@ class Core(db: Database, fileDbPath: String){
     * Generate random File ID
     * @return Random File ID
     */
-  def generateRandomFileId(): String = {
+  def generateRandomFileId(idLength: Int): String = {
     // 1 ~ 9 + 'a' ~ 'z'
     val candidates: Seq[String] = ((0 to 9) ++ ('a' to 'z')).map(_.toString)
-    val r = scala.util.Random
-    val i = (1 to 3).map{_ =>
+    val r = scala.util.Random // TODO Use secure random
+    val i = (1 to idLength).map{_ =>
       val idx = r.nextInt(candidates.length)
       candidates(idx)
     }

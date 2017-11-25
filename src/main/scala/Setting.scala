@@ -13,4 +13,7 @@ object Setting {
   val DefaultStoreDuration : FiniteDuration = 1.hour
   val MaxStoreDuration     : FiniteDuration = 30.days
   val CleanupDuration      : FiniteDuration = 1.minute
+  val DefaultIdLength      : Int            = 3
+  val MinIdLength          : Int            = 3
+  val MaxIdLength          : Int            = 256
 }
