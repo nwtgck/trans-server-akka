@@ -1,5 +1,6 @@
 import java.nio.file.Files
 
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
 import slick.driver.H2Driver.api._
@@ -26,7 +27,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     core = new Core(db, fileDbPath = tmpFileDbPath)
   }
 
-  test("[positive] send test") {
+  test("[positive] send") {
     val fileContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     Post("/").withEntity(fileContent) ~> core.route ~> check {
       // Get file ID
@@ -37,7 +38,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
   }
 
-  test("[positive] send/get test") {
+  test("[positive] send/get") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     var fileId: String = null
     Post("/").withEntity(originalContent) ~> core.route ~> check {
@@ -52,6 +53,47 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       val resContent: String = responseAs[String]
       // response should be original
       resContent shouldBe originalContent
+    }
+  }
+
+  test("[positive] send/get duration") {
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+    var fileId     : String = null
+    val durationSec: Int    = 5
+    Post(s"/?duration=${durationSec}s").withEntity(originalContent) ~> core.route ~> check {
+      // Get file ID
+      fileId = responseAs[String].trim
+      println(s"fileId: ${fileId}")
+      // File ID length should be 3
+      fileId.length shouldBe 3
+    }
+
+    Thread.sleep((durationSec - 2)*1000)
+
+    Get(s"/${fileId}") ~> core.route ~> check {
+      val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe originalContent
+    }
+  }
+
+  test("[negative] send/get duration") {
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+    var fileId     : String = null
+    val durationSec: Int    = 5
+    Post(s"/?duration=${durationSec}s").withEntity(originalContent) ~> core.route ~> check {
+      // Get file ID
+      fileId = responseAs[String].trim
+      println(s"fileId: ${fileId}")
+      // File ID length should be 3
+      fileId.length shouldBe 3
+    }
+
+    Thread.sleep((durationSec + 2)*1000)
+
+    Get(s"/${fileId}") ~> core.route ~> check {
+      // The status should be 404
+      response.status shouldBe StatusCodes.NotFound
     }
   }
 

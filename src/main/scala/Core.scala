@@ -1,10 +1,7 @@
-import java.io.{File, FileInputStream, InputStream}
+import java.io.File
 import java.nio.file.StandardOpenOption
-import java.security.{KeyStore, SecureRandom}
-import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
-import akka.http.scaladsl.{ConnectionContext, HttpsConnectionContext}
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
@@ -12,9 +9,8 @@ import akka.stream.scaladsl.{FileIO, Source}
 import akka.util.ByteString
 import slick.driver.H2Driver.api._
 
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
 import scala.util.{Success, Try}
 
 class Core(db: Database, fileDbPath: String){
@@ -74,7 +70,6 @@ class Core(db: Database, fileDbPath: String){
     // for routing DSL
     import akka.http.scaladsl.server.Directives._
     // for using XML
-    import akka.http.scaladsl.marshallers.xml.ScalaXmlSupport._
     // for using settings
     import Setting._
     // for Futures
