@@ -66,7 +66,7 @@ $ sudo java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80 443
 
 ## How to send a file to the server
 
-### Way1 - curl
+### Way 1 - curl
 
 The following example is sending `../test.txt`
 
@@ -82,7 +82,7 @@ ab2
 The server response, `ab2` is a File ID to get `../test.txt`
 
 
-### Way2 - wget
+### Way 2 - wget
 
 The following example is sending `../test.txt`
 
@@ -101,7 +101,7 @@ $ wget -q -O - https://trans-akka.herokuapp.com/ --post-file=../test.txt
 The server response, `9vi` is a File ID to get `../test.txt`
 
 
-### Way3 - wc & cat & nc
+### Way 3 - wc & cat & nc
 
 **This way is for a user which can't use `curl` command.**
 
@@ -155,7 +155,7 @@ Content-Length: 4
 
 ## How to get a file from the server
 
-### Way1 - wget
+### Way 1 - wget
 
 ```sh
 $ wget https://trans-akka.herokuapp.com/ab2
@@ -163,7 +163,7 @@ $ wget https://trans-akka.herokuapp.com/ab2
 
 `ab2` is a File ID.
 
-### Way2 - curl
+### Way 2 - curl
 
 
 ```sh
@@ -173,7 +173,7 @@ $ curl https://trans-akka.herokuapp.com/ab2 > test.txt
 `ab2` is a File ID.
 
 
-### Way3 - Using a Browser
+### Way 3 - Using a Browser
 
 Access to `https://trans-akka.herokuapp.com/ab2`
 
