@@ -86,7 +86,7 @@ class Core(db: Database, fileDbPath: String){
     } ~
       // "Post /" for client-sending a file
       (post & pathSingleSlash) {
-        parameter('duration.?) { (durationStrOpt: Option[String]) =>
+        parameter('duration.?, 'times.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String]) =>
 
           println(s"durationStrOpt: ${durationStrOpt}")
 
@@ -99,6 +99,12 @@ class Core(db: Database, fileDbPath: String){
               .getOrElse(DefaultStoreDuration)
           println(s"Duration: ${duration}")
 
+          // Generate nGetLimitOpt
+          val nGetLimitOpt: Option[Int] = for {
+            nGetLimitStr <- nGetLimitStrOpt
+            nGetLimit    <- Try(nGetLimitStr.toInt).toOption
+          } yield nGetLimit
+          println(s"nGetLimitOpt: ${nGetLimitOpt}")
 
           // Generate File ID and storeFilePath
           val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
@@ -108,7 +114,7 @@ class Core(db: Database, fileDbPath: String){
           withoutSizeLimit {
             extractDataBytes { bytes =>
               // Store bytes to DB
-              val storeFut: Future[String] = storeBytes(bytes, duration, nGetLimitOpt = None) // TODO nGetLimitOpt should be impled
+              val storeFut: Future[String] = storeBytes(bytes, duration, nGetLimitOpt)
 
               onComplete(storeFut){
                 case Success(fileId) =>
@@ -124,7 +130,7 @@ class Core(db: Database, fileDbPath: String){
       // "Post /" for client-sending a file
       (post & path("multipart") & entity(as[Multipart.FormData])) { formData =>
 
-        parameter('duration.?) { (durationStrOpt: Option[String]) =>
+        parameter('duration.?, 'times.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String]) =>
 
           // Get duration
           val duration: FiniteDuration =
@@ -134,6 +140,13 @@ class Core(db: Database, fileDbPath: String){
             } yield durationSec.seconds)
               .getOrElse(DefaultStoreDuration)
           println(s"Duration: ${duration}")
+
+          // Generate nGetLimitOpt
+          val nGetLimitOpt: Option[Int] = for {
+            nGetLimitStr <- nGetLimitStrOpt
+            nGetLimit    <- Try(nGetLimitStr.toInt).toOption
+          } yield nGetLimit
+          println(s"nGetLimitOpt: ${nGetLimitOpt}")
 
           val fileIdsSource: Source[String, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
             // Generate File ID and storeFilePath
