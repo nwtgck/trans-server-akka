@@ -2,5 +2,5 @@
 /project/target
 /project/project
 /target
-/file_db
+/db
 *.keystore
