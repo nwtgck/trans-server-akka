@@ -194,9 +194,22 @@ class Core(db: Database, fileDbPath: String){
             // File exists
             if (file.exists()) {
               withRangeSupport { // Range support for `pget`
-                complete(
-                  HttpEntity.fromPath(ContentTypes.NoContentType, file.toPath)
-                )
+                // Create decrement-nGetLimit-DBIO (TODO decrementing nGetLimit may need mutual execution)
+                val decrementDbio = for {
+                  // Find file store
+                  fileStore <- Tables.allFileStores.filter(_.fileId === fileId).result.head
+                  // Decrement nGetLimit
+                  _         <- Tables.allFileStores.filter(_.fileId === fileId).map(_.nGetLimitOpt).update(fileStore.nGetLimitOpt.map(_ - 1))
+                } yield ()
+
+                onComplete(db.run(decrementDbio)){
+                  case Success(_) =>
+                    complete(
+                      HttpEntity.fromPath(ContentTypes.NoContentType, file.toPath)
+                    )
+                  case _ =>
+                    complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
+                }
               }
             } else {
               complete(StatusCodes.NotFound, s"File ID '${fileId}' is not found\n")
