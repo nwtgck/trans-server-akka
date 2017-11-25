@@ -23,7 +23,14 @@ class Core(db: Database, fileDbPath: String){
   private val secureRandom: Random = new Random(new java.security.SecureRandom())
 
 
-  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int], idLengthOpt: Option[Int])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[FileId] = {
+  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int], idLengthOpt: Option[Int], isDeletable: Boolean, deleteKeyOpt: Option[String])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[FileId] = {
+
+    if(false) {// NOTE: if-false outed
+      require(
+        !isDeletable && deleteKeyOpt.isEmpty || // deleteKeyOpt should be None if not isDeletable
+        isDeletable                             // deleteKeyOpt can be None or Some() if isDeletable
+      )
+    }
 
     import TimestampUtil.RichTimestampImplicit._
 
@@ -42,11 +49,28 @@ class Core(db: Database, fileDbPath: String){
     val adjustedDuration: FiniteDuration = duration.min(Setting.MaxStoreDuration)
     println(s"adjustedDuration: ${adjustedDuration}")
 
+    println(s"isDeletable: ${isDeletable}")
+
+    // Generate hashed delete key
+    val hashedDeleteKeyOpt: Option[String] =
+      if(isDeletable)
+        deleteKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
+      else
+        None
+
     for {
       // Store the file
       ioResult   <- byteSource.runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
       // Create file store object
-      fileStore = FileStore(fileId=fileId, storePath=storeFilePath, createdAt=TimestampUtil.now(), deadline = TimestampUtil.now + adjustedDuration, nGetLimitOpt = nGetLimitOpt)
+      fileStore = FileStore(
+        fileId             = fileId,
+        storePath          = storeFilePath,
+        createdAt          = TimestampUtil.now(),
+        deadline           = TimestampUtil.now + adjustedDuration,
+        nGetLimitOpt       = nGetLimitOpt,
+        isDeletable        = isDeletable,
+        hashedDeleteKeyOpt = hashedDeleteKeyOpt
+      )
       // Store to the database
       // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
       _          <- db.run(Tables.allFileStores += fileStore)
@@ -103,9 +127,11 @@ class Core(db: Database, fileDbPath: String){
     } ~
       // "Post /" for client-sending a file
       (post & pathSingleSlash) {
-        parameter('duration.?, 'times.?, 'length.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String]) =>
+        parameter('duration.?, 'times.?, 'length.?, 'deletable.?, 'key.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String]) =>
 
           println(s"durationStrOpt: ${durationStrOpt}")
+
+          println(s"isDeletableStrOpt: ${isDeletableStrOpt}")
 
           // Get duration
           val duration: FiniteDuration =
@@ -130,12 +156,25 @@ class Core(db: Database, fileDbPath: String){
           } yield idLength
           println(s"idLengthOpt: ${idLengthOpt}")
 
+          // Generate isDeletable
+          val isDeletable: Boolean = (for{
+            deletableStr <- isDeletableStrOpt
+            b            <- deletableStr match {
+              case ""      => Some(true)
+              case "true"  => Some(true)
+              case "false" => Some(false)
+              case _       => Some(false)
+            }
+          } yield b)
+            .getOrElse(false)
+
+
           // Get a file from client and store it
           // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
           withoutSizeLimit {
             extractDataBytes { bytes =>
               // Store bytes to DB
-              val storeFut: Future[FileId] = storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt)
+              val storeFut: Future[FileId] = storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt, isDeletable, deleteKeyOpt)
 
               onComplete(storeFut){
                 case Success(fileId) =>
@@ -151,7 +190,7 @@ class Core(db: Database, fileDbPath: String){
       // "Post /" for client-sending a file
       (post & path("multipart") & entity(as[Multipart.FormData])) { formData =>
 
-        parameter('duration.?, 'times.?, 'length.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String]) =>
+        parameter('duration.?, 'times.?, 'length.?, 'deletable.?, 'key.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String]) =>
 
           // Get duration
           val duration: FiniteDuration =
@@ -176,12 +215,24 @@ class Core(db: Database, fileDbPath: String){
           } yield idLength
           println(s"idLengthOpt: ${idLengthOpt}")
 
+          // Generate isDeletable
+          val isDeletable: Boolean = (for{
+            deletableStr <- isDeletableStrOpt
+            b            <- deletableStr match {
+              case ""      => Some(true)
+              case "true"  => Some(true)
+              case "false" => Some(false)
+              case _       => Some(false)
+            }
+          } yield b)
+            .getOrElse(false)
+
           val fileIdsSource: Source[FileId, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
             // Get data bytes
             val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
 
             // Store bytes to DB
-            storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt)
+            storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt, isDeletable, deleteKeyOpt)
           }
 
           val fileIdsFut: Future[List[FileId]] = fileIdsSource.runFold(List.empty[FileId])((l, s) => l :+ s)
@@ -235,12 +286,73 @@ class Core(db: Database, fileDbPath: String){
                 }
               }
             } else {
-              complete(StatusCodes.NotFound, s"File ID '${fileId}' is not found\n")
+              complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
             }
           case _ =>
-            complete(StatusCodes.NotFound, s"File ID '${fileId}' is not found or expired\n")
+            complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found or expired\n")
         }
 
+      } ~
+      // Delete file by ID
+      (delete & path(Remaining)) { fileIdStr =>
+        parameter('key.?) { (deleteKeyOpt: Option[String]) =>
+
+          // Generate file ID instance
+          val fileId: FileId = FileId(fileIdStr)
+
+          // Generate hashed delete key
+          val hashedDeleteKeyOpt: Option[String] =
+            deleteKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
+
+          // Check existence of valid(=not expired and deletable and has the same key) file store
+          val existsFileStoreFut: Future[Option[FileStore]] =  db.run(
+            Tables.allFileStores
+              .filter(fileStore =>
+                fileStore.fileId === fileId &&
+                isAliveFileStore(fileStore) &&
+                fileStore.isDeletable &&
+
+                // NOTE: THIS if-else is for equality of NULL
+                (if(hashedDeleteKeyOpt.isDefined)
+                  (fileStore.hashedDeleteKeyOpt === hashedDeleteKeyOpt).getOrElse(false) // NOTE: I'm not sure that .getOrElse(false) is correct
+                  else
+                   fileStore.hashedDeleteKeyOpt.isEmpty
+                )
+              )
+              .result
+              .headOption
+          )
+          onComplete(existsFileStoreFut){
+            // If file is alive (not expired and exist)
+            case Success(Some(fileStore)) =>
+              // Generate file instance
+              val file = new File(fileStore.storePath)
+              // File exists
+              if (file.exists()) {
+
+                val fut: Future[Unit] = for{
+                  // Delete the file store by ID
+                  _ <- db.run(Tables.allFileStores.filter(_.fileId === fileId).delete)
+                  // Delete the file
+                  _ <- Future.successful{
+                    new File(fileStore.storePath).delete()
+                  }
+                } yield ()
+                onComplete(fut){
+                  case Success(_) =>
+                    complete("Deleted successfully\n")
+                  case _ =>
+                    complete(StatusCodes.InternalServerError, s"Server error in delete a file\n")
+                }
+              } else {
+                complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
+              }
+            case _ =>
+              complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found, expired or not deletable\n")
+          }
+
+
+        }
       }
   }
 
