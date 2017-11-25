@@ -14,7 +14,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Try}
 
 class Core(db: Database, fileDbPath: String){
-  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration)(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[String] = {
+  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[String] = {
 
     import TimestampUtil.RichTimestampImplicit._
 
@@ -29,7 +29,7 @@ class Core(db: Database, fileDbPath: String){
       // Store the file
       ioResult   <- byteSource.runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
       // Create file store object
-      fileStore = Tables.FileStore(fileId=fileId, createdAt=TimestampUtil.now(), deadline = TimestampUtil.now + adjustedDuration)
+      fileStore = Tables.FileStore(fileId=fileId, createdAt=TimestampUtil.now(), deadline = TimestampUtil.now + adjustedDuration, nGetLimitOpt = nGetLimitOpt)
       // Store to the database
       // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
       _          <- db.run(Tables.allFileStores += fileStore)
@@ -86,7 +86,7 @@ class Core(db: Database, fileDbPath: String){
     } ~
       // "Post /" for client-sending a file
       (post & pathSingleSlash) {
-        parameter('duration.?) { (durationStrOpt: Option[String]) =>
+        parameter('duration.?, 'times.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String]) =>
 
           println(s"durationStrOpt: ${durationStrOpt}")
 
@@ -99,6 +99,12 @@ class Core(db: Database, fileDbPath: String){
               .getOrElse(DefaultStoreDuration)
           println(s"Duration: ${duration}")
 
+          // Generate nGetLimitOpt
+          val nGetLimitOpt: Option[Int] = for {
+            nGetLimitStr <- nGetLimitStrOpt
+            nGetLimit    <- Try(nGetLimitStr.toInt).toOption
+          } yield nGetLimit
+          println(s"nGetLimitOpt: ${nGetLimitOpt}")
 
           // Generate File ID and storeFilePath
           val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
@@ -108,7 +114,7 @@ class Core(db: Database, fileDbPath: String){
           withoutSizeLimit {
             extractDataBytes { bytes =>
               // Store bytes to DB
-              val storeFut: Future[String] = storeBytes(bytes, duration)
+              val storeFut: Future[String] = storeBytes(bytes, duration, nGetLimitOpt)
 
               onComplete(storeFut){
                 case Success(fileId) =>
@@ -124,7 +130,7 @@ class Core(db: Database, fileDbPath: String){
       // "Post /" for client-sending a file
       (post & path("multipart") & entity(as[Multipart.FormData])) { formData =>
 
-        parameter('duration.?) { (durationStrOpt: Option[String]) =>
+        parameter('duration.?, 'times.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String]) =>
 
           // Get duration
           val duration: FiniteDuration =
@@ -135,6 +141,13 @@ class Core(db: Database, fileDbPath: String){
               .getOrElse(DefaultStoreDuration)
           println(s"Duration: ${duration}")
 
+          // Generate nGetLimitOpt
+          val nGetLimitOpt: Option[Int] = for {
+            nGetLimitStr <- nGetLimitStrOpt
+            nGetLimit    <- Try(nGetLimitStr.toInt).toOption
+          } yield nGetLimit
+          println(s"nGetLimitOpt: ${nGetLimitOpt}")
+
           val fileIdsSource: Source[String, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
             // Generate File ID and storeFilePath
             val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
@@ -142,7 +155,7 @@ class Core(db: Database, fileDbPath: String){
             val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
 
             // Store bytes to DB
-            storeBytes(bytes, duration)
+            storeBytes(bytes, duration, nGetLimitOpt = None) // TODO nGetLimitOpt should be impled
           }
 
           val fileIdsFut: Future[List[String]] = fileIdsSource.runFold(List.empty[String])((l, s) => l :+ s)
@@ -166,7 +179,11 @@ class Core(db: Database, fileDbPath: String){
         // Check existence of valid(=not expired) file store
         val existsFileStoreFut: Future[Boolean] =  db.run(
           Tables.allFileStores
-            .filter(fileStore => fileStore.fileId === fileId && fileStore.deadline >= new java.sql.Timestamp(System.currentTimeMillis()) )
+            .filter(fileStore =>
+              fileStore.fileId === fileId &&
+              fileStore.deadline >= new java.sql.Timestamp(System.currentTimeMillis()) &&
+              (fileStore.nGetLimitOpt.isEmpty || fileStore.nGetLimitOpt > 0)
+            )
             .exists
             .result
         )
@@ -177,9 +194,22 @@ class Core(db: Database, fileDbPath: String){
             // File exists
             if (file.exists()) {
               withRangeSupport { // Range support for `pget`
-                complete(
-                  HttpEntity.fromPath(ContentTypes.NoContentType, file.toPath)
-                )
+                // Create decrement-nGetLimit-DBIO (TODO decrementing nGetLimit may need mutual execution)
+                val decrementDbio = for {
+                  // Find file store
+                  fileStore <- Tables.allFileStores.filter(_.fileId === fileId).result.head
+                  // Decrement nGetLimit
+                  _         <- Tables.allFileStores.filter(_.fileId === fileId).map(_.nGetLimitOpt).update(fileStore.nGetLimitOpt.map(_ - 1))
+                } yield ()
+
+                onComplete(db.run(decrementDbio)){
+                  case Success(_) =>
+                    complete(
+                      HttpEntity.fromPath(ContentTypes.NoContentType, file.toPath)
+                    )
+                  case _ =>
+                    complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
+                }
               }
             } else {
               complete(StatusCodes.NotFound, s"File ID '${fileId}' is not found\n")
