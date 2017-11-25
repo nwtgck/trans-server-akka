@@ -1,9 +1,16 @@
+import slick.ast.BaseTypedType
+import slick.jdbc.JdbcType
 import slick.jdbc.meta.MTable
 
 import scala.concurrent.{ExecutionContext, Future}
 
 object Tables {
   import slick.driver.H2Driver.api._
+
+  object OriginalTypeImplicits{
+    implicit val fileIdType: JdbcType[FileId] with BaseTypedType[FileId] = MappedColumnType.base[FileId, String]({ id => id.value}, { str => FileId(str) })
+  }
+  import OriginalTypeImplicits._
 
   val allFileStores = TableQuery[FileStores]
 
@@ -31,22 +38,16 @@ object Tables {
   }
 
 
-
-
-  case class FileStore(fileId        : String,
-                       storePath     : String,
-                       createdAt     : java.sql.Timestamp,
-                       deadline      : java.sql.Timestamp,
-                       nGetLimitOpt  : Option[Int])
-
   class FileStores(tag: Tag) extends Table[FileStore](tag, "file_stores"){
-    val fileId         = column[String]("file_id", O.PrimaryKey)
-    val storePath      = column[String]("store_path")
-    val createdAt      = column[java.sql.Timestamp]("created_at")
-    val deadline       = column[java.sql.Timestamp]("deadline")
-    val nGetLimitOpt   = column[Option[Int]]("n_get_limit_opt")
+    val fileId             = column[FileId]("file_id", O.PrimaryKey)
+    val storePath          = column[String]("store_path")
+    val createdAt          = column[java.sql.Timestamp]("created_at")
+    val deadline           = column[java.sql.Timestamp]("deadline")
+    val nGetLimitOpt       = column[Option[Int]]("n_get_limit_opt")
+    val isDeletable        = column[Boolean]("is_deletable")
+    val hashedDeleteKeyOpt = column[Option[String]]("hashed_delete_key_opt")
 
-    override def * = (fileId, storePath, createdAt, deadline, nGetLimitOpt) <> (FileStore.tupled, FileStore.unapply)
+    override def * = (fileId, storePath, createdAt, deadline, nGetLimitOpt, isDeletable, hashedDeleteKeyOpt) <> (FileStore.tupled, FileStore.unapply)
   }
 
 
