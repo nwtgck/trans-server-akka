@@ -4,6 +4,10 @@ version := "1.1.0"
 
 scalaVersion := "2.11.8"
 
+// Skip test when sbt assembly
+// (from: http://www.shigemk2.com/entry/scala_aseembly_part2)
+test in assembly := {}
+// Change jar name by "sbt assembly"
 assemblyJarName in assembly := { s"${name.value}.jar" }
 
 val akkaVersion = "10.0.5"
