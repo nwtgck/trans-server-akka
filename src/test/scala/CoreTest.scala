@@ -33,8 +33,8 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       // Get file ID
       val fileId: String = responseAs[String].trim
       println(s"fileId: ${fileId}")
-      // File ID length should be 3
-      fileId.length shouldBe 3
+      // File ID length should be DefaultIdLength
+      fileId.length shouldBe Setting.DefaultIdLength
     }
   }
 
@@ -56,7 +56,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
   }
 
-  test("[positive] send/get duration") {
+  test("[positive] send/get with duration") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     var fileId     : String = null
     val durationSec: Int    = 5
@@ -78,7 +78,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
   }
 
-  test("[negative] send/get duration") {
+  test("[negative] send/get with duration") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     var fileId     : String = null
     val durationSec: Int    = 5
@@ -98,7 +98,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
   }
 
-  test("[positive/negative] send/get times") {
+  test("[positive/negative] send/get with times") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     var fileId     : String = null
     val times      : Int    = 5
@@ -124,6 +124,42 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Get(s"/${fileId}") ~> core.route ~> check {
       // The status should be 404
       response.status shouldBe StatusCodes.NotFound
+    }
+  }
+
+  test("[positive] send with length=16") {
+    val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+    val fileIdLength: Int    = 16
+    Post(s"/?length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
+      // Get file ID
+      val fileId: String = responseAs[String].trim
+      println(s"fileId: ${fileId}")
+      // File ID length should be fileIdLength
+      fileId.length shouldBe fileIdLength
+    }
+  }
+
+  test("[positive] send with length=100000 (too big)") {
+    val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+    val fileIdLength: Int    = 100000
+    Post(s"/?length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
+      // Get file ID
+      val fileId: String = responseAs[String].trim
+      println(s"fileId: ${fileId}")
+      // File ID length should be MaxIdLength
+      fileId.length shouldBe Setting.MaxIdLength
+    }
+  }
+
+  test("[positive] send with length=1 (too small)") {
+    val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+    val fileIdLength: Int    = 1
+    Post(s"/?length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
+      // Get file ID
+      val fileId: String = responseAs[String].trim
+      println(s"fileId: ${fileId}")
+      // File ID length should be MinIdLength
+      fileId.length shouldBe Setting.MinIdLength
     }
   }
 

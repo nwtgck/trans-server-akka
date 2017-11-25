@@ -11,15 +11,32 @@ import slick.driver.H2Driver.api._
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Success, Try}
+import scala.util.{Random, Success, Try}
+import Tables.OriginalTypeImplicits._
+
 
 class Core(db: Database, fileDbPath: String){
-  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[String] = {
+
+
+  // Secure random generator
+  // (from: https://qiita.com/suin/items/bfff121c8481990e1507)
+  private val secureRandom: Random = new Random(new java.security.SecureRandom())
+
+
+  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int], idLengthOpt: Option[Int])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[FileId] = {
 
     import TimestampUtil.RichTimestampImplicit._
 
+    // Get ID length
+    val idLength: Int =
+      idLengthOpt
+        .getOrElse(Setting.DefaultIdLength)
+        .max(Setting.MinIdLength)
+        .min(Setting.MaxIdLength)
+    println(s"idLength: ${idLength}")
+
     // Generate File ID and storeFilePath
-    val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
+    val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath(idLength)
 
     // Adjust duration (big duration is not good)
     val adjustedDuration: FiniteDuration = duration.min(Setting.MaxStoreDuration)
@@ -29,7 +46,7 @@ class Core(db: Database, fileDbPath: String){
       // Store the file
       ioResult   <- byteSource.runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
       // Create file store object
-      fileStore = Tables.FileStore(fileId=fileId, storePath=storeFilePath, createdAt=TimestampUtil.now(), deadline = TimestampUtil.now + adjustedDuration, nGetLimitOpt = nGetLimitOpt)
+      fileStore = FileStore(fileId=fileId, storePath=storeFilePath, createdAt=TimestampUtil.now(), deadline = TimestampUtil.now + adjustedDuration, nGetLimitOpt = nGetLimitOpt)
       // Store to the database
       // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
       _          <- db.run(Tables.allFileStores += fileStore)
@@ -86,7 +103,7 @@ class Core(db: Database, fileDbPath: String){
     } ~
       // "Post /" for client-sending a file
       (post & pathSingleSlash) {
-        parameter('duration.?, 'times.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String]) =>
+        parameter('duration.?, 'times.?, 'length.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String]) =>
 
           println(s"durationStrOpt: ${durationStrOpt}")
 
@@ -106,19 +123,23 @@ class Core(db: Database, fileDbPath: String){
           } yield nGetLimit
           println(s"nGetLimitOpt: ${nGetLimitOpt}")
 
-          // Generate File ID and storeFilePath
-          val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
+          // Generate idLengthOpt
+          val idLengthOpt: Option[Int] = for {
+            idLengthStr <- idLengthStrOpt
+            idLength    <- Try(idLengthStr.toInt).toOption
+          } yield idLength
+          println(s"idLengthOpt: ${idLengthOpt}")
 
           // Get a file from client and store it
           // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
           withoutSizeLimit {
             extractDataBytes { bytes =>
               // Store bytes to DB
-              val storeFut: Future[String] = storeBytes(bytes, duration, nGetLimitOpt)
+              val storeFut: Future[FileId] = storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt)
 
               onComplete(storeFut){
                 case Success(fileId) =>
-                  complete(s"${fileId}\n")
+                  complete(s"${fileId.value}\n")
                 case f =>
                   println(f)
                   complete("Upload failed") // TODO Change response
@@ -130,7 +151,7 @@ class Core(db: Database, fileDbPath: String){
       // "Post /" for client-sending a file
       (post & path("multipart") & entity(as[Multipart.FormData])) { formData =>
 
-        parameter('duration.?, 'times.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String]) =>
+        parameter('duration.?, 'times.?, 'length.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String]) =>
 
           // Get duration
           val duration: FiniteDuration =
@@ -148,32 +169,40 @@ class Core(db: Database, fileDbPath: String){
           } yield nGetLimit
           println(s"nGetLimitOpt: ${nGetLimitOpt}")
 
-          val fileIdsSource: Source[String, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
-            // Generate File ID and storeFilePath
-            val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath()
+          // Generate idLengthOpt
+          val idLengthOpt: Option[Int] = for {
+            idLengthStr <- idLengthStrOpt
+            idLength    <- Try(idLengthStr.toInt).toOption
+          } yield idLength
+          println(s"idLengthOpt: ${idLengthOpt}")
+
+          val fileIdsSource: Source[FileId, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
             // Get data bytes
             val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
 
             // Store bytes to DB
-            storeBytes(bytes, duration, nGetLimitOpt = None) // TODO nGetLimitOpt should be impled
+            storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt)
           }
 
-          val fileIdsFut: Future[List[String]] = fileIdsSource.runFold(List.empty[String])((l, s) => l :+ s)
+          val fileIdsFut: Future[List[FileId]] = fileIdsSource.runFold(List.empty[FileId])((l, s) => l :+ s)
 
 
           onComplete(fileIdsFut) {
             case Success(fileIds) =>
-              complete(fileIds.mkString("\n"))
+              complete(fileIds.map(_.value).mkString("\n"))
             case _ =>
               complete("Upload failed") // TODO Change response
           }
         }
       } ~
       // "Get /xyz" for client-getting the specified file
-      (get & path(Remaining)) { fileId =>
+      (get & path(Remaining)) { fileIdStr =>
+
+        // Generate file ID instance
+        val fileId: FileId = FileId(fileIdStr)
 
         // Check existence of valid(=not expired) file store
-        val existsFileStoreFut: Future[Option[Tables.FileStore]] =  db.run(
+        val existsFileStoreFut: Future[Option[FileStore]] =  db.run(
           Tables.allFileStores
             .filter(fileStore =>  fileStore.fileId === fileId && isAliveFileStore(fileStore))
             .result
@@ -260,28 +289,27 @@ class Core(db: Database, fileDbPath: String){
     * Generate non-duplicated File ID and store path
     * @return
     */
-  def generateNoDuplicatedFiledIdAndStorePath(): (String, String) = {
-    var fileId: String = null
+  def generateNoDuplicatedFiledIdAndStorePath(idLength: Int): (FileId, String) = {
+    var fileIdStr: String = null
     var storeFilePath: String = null
 
     // Generate File ID and storeFilePath
     do {
-      fileId = generateRandomFileId()
-      storeFilePath = List(fileDbPath, fileId).mkString(File.separator)
+      fileIdStr = generateRandomFileId(idLength)
+      storeFilePath = List(fileDbPath, fileIdStr).mkString(File.separator)
     } while (new File(storeFilePath).exists())
-    return (fileId, storeFilePath)
+    return (FileId(fileIdStr), storeFilePath)
   }
 
   /**
     * Generate random File ID
     * @return Random File ID
     */
-  def generateRandomFileId(): String = {
+  def generateRandomFileId(idLength: Int): String = {
     // 1 ~ 9 + 'a' ~ 'z'
     val candidates: Seq[String] = ((0 to 9) ++ ('a' to 'z')).map(_.toString)
-    val r = scala.util.Random
-    val i = (1 to 3).map{_ =>
-      val idx = r.nextInt(candidates.length)
+    val i = (1 to idLength).map{_ =>
+      val idx = secureRandom.nextInt(candidates.length)
       candidates(idx)
     }
     i.mkString
