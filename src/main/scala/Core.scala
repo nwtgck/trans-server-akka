@@ -286,15 +286,73 @@ class Core(db: Database, fileDbPath: String){
                 }
               }
             } else {
-              complete(StatusCodes.NotFound, s"File ID '${fileId}' is not found\n")
+              complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
             }
           case _ =>
-            complete(StatusCodes.NotFound, s"File ID '${fileId}' is not found or expired\n")
+            complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found or expired\n")
         }
 
       } ~
-      (delete & pathSingleSlash) {
-        complete("This is in delete\n") // TODO impl
+      // Delete file by ID
+      (delete & path(Remaining)) { fileIdStr =>
+        parameter('key.?) { (deleteKeyOpt: Option[String]) =>
+
+          // Generate file ID instance
+          val fileId: FileId = FileId(fileIdStr)
+
+          // Generate hashed delete key
+          val hashedDeleteKeyOpt: Option[String] =
+            deleteKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
+
+          // Check existence of valid(=not expired and deletable and has the same key) file store
+          val existsFileStoreFut: Future[Option[FileStore]] =  db.run(
+            Tables.allFileStores
+              .filter(fileStore =>
+                fileStore.fileId === fileId &&
+                isAliveFileStore(fileStore) &&
+                fileStore.isDeletable &&
+
+                // NOTE: THIS if-else is for equality of NULL
+                (if(hashedDeleteKeyOpt.isDefined)
+                  (fileStore.hashedDeleteKeyOpt === hashedDeleteKeyOpt).getOrElse(false) // NOTE: I'm not sure that .getOrElse(false) is correct
+                  else
+                   fileStore.hashedDeleteKeyOpt.isEmpty
+                )
+              )
+              .result
+              .headOption
+          )
+          onComplete(existsFileStoreFut){
+            // If file is alive (not expired and exist)
+            case Success(Some(fileStore)) =>
+              // Generate file instance
+              val file = new File(fileStore.storePath)
+              // File exists
+              if (file.exists()) {
+
+                val fut: Future[Unit] = for{
+                  // Delete the file store by ID
+                  _ <- db.run(Tables.allFileStores.filter(_.fileId === fileId).delete)
+                  // Delete the file
+                  _ <- Future.successful{
+                    new File(fileStore.storePath).delete()
+                  }
+                } yield ()
+                onComplete(fut){
+                  case Success(_) =>
+                    complete("Deleted successfully\n")
+                  case _ =>
+                    complete(StatusCodes.InternalServerError, s"Server error in delete a file\n")
+                }
+              } else {
+                complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
+              }
+            case _ =>
+              complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found, expired or not deletable\n")
+          }
+
+
+        }
       }
   }
 
