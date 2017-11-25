@@ -54,6 +54,15 @@ object Main {
       }
     }
 
+    // Scheduling for cleaning up dead files
+    // (from: https://doc.akka.io/docs/akka/2.5/scheduler.html?language=scala)
+    system.scheduler.schedule(CleanupDuration, CleanupDuration, new Runnable {
+      override def run(): Unit = {
+        // Clean up dead files
+        core.removeDeadFiles()
+      }
+    })
+
     // Generate a HttpsConnectionContext
     val httpsConnectionContext: HttpsConnectionContext = generateHttpsConnectionContext()
 
