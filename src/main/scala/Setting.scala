@@ -16,4 +16,5 @@ object Setting {
   val DefaultIdLength      : Int            = 3
   val MinIdLength          : Int            = 3
   val MaxIdLength          : Int            = 256
+  val KeySalt              : String         = "ymiKicjOq5M3yIMmVBEPFcLnkNxJ4n2iY9ms3fYRsBDS3wZvS1lev9ToLnZhlj3O"
 }
