@@ -1,22 +1,27 @@
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
 import slick.driver.H2Driver.api._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 
-class CoreTest extends FunSuite with ScalatestRouteTest with Matchers {
+class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with BeforeAndAfter {
 
-  test("[positive] send test") {
 
+  var db  : Database = _
+  var core: Core     = _
+
+  before {
     // Create a memory-base db
-    val db = Database.forConfig("h2mem-trans")
+    db = Database.forConfig("h2mem-trans")
     // Create a tables
     Await.ready(Tables.createTablesIfNotExist(db), Duration.Inf)
     // Create a core system
-    val core: Core = new Core(db)
+    core = new Core(db)
+  }
 
+  test("[positive] send test") {
     val fileContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     Post("/").withEntity(fileContent) ~> core.route ~> check {
       // Get file ID
@@ -25,16 +30,11 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers {
       // File ID length should be 3
       fileId.length shouldBe 3
     }
+
+    // TODO Remove db/file_db
   }
 
   test("[positive] send/get test") {
-    // Create a memory-base db
-    val db = Database.forConfig("h2mem-trans")
-    // Create a tables
-    Await.ready(Tables.createTablesIfNotExist(db), Duration.Inf)
-    // Create a core system
-    val core: Core = new Core(db)
-
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     var fileId: String = null
     Post("/").withEntity(originalContent) ~> core.route ~> check {
@@ -51,6 +51,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers {
       resContent shouldBe originalContent
     }
 
+    // TODO Remove db/file_db
   }
 
 }
