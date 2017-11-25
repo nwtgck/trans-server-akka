@@ -1,7 +1,17 @@
 # trans - Transmit a file anywhere
 
-Transmit files by using only standard commands, `wget` or `curl`
+Transmit files by using only standard commands, `curl` or `wget`
 
+| branch | Travis status|
+| --- | --- |
+| [`master`](https://github.com/nwtgck/trans-server-akka/tree/master) | [![Build Status](https://travis-ci.org/nwtgck/trans-server-akka.svg?branch=master)](https://travis-ci.org/nwtgck/trans-server-akka) |
+| [`develop`](https://github.com/nwtgck/trans-server-akka/tree/develop) | [![Build Status](https://travis-ci.org/nwtgck/trans-server-akka.svg?branch=develop)](https://travis-ci.org/nwtgck/trans-server-akka) |
+
+
+## Main features
+
+* Send/Get via only standard command, `curl` or `wget` (You don't have install any command!)
+* Send/Get on your browser 
 
 ## How to run the server
 
@@ -38,16 +48,15 @@ $ sbt assembly
 $ sudo java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80 443
 ```
 
-## How to run the server on Docker
+## How to run a server on Docker
 
-```sh
-# In host machine
-$ git clone <this-project-url>
-$ cd <this-project>
-$ sbt assembly
-$ ./make-keystore.bash
-$ docker run -itd -p 80:80 -p 443:443 -v $PWD:/trans nwtgck/java:8 sh -c 'cd /trans && java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80 443'
+[![Docker Automated build](https://img.shields.io/docker/automated/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/) [![Docker Pulls](https://img.shields.io/docker/pulls/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/)
+
+```bash
+docker run -p 8080:80 nwtgck/trans-server-akka
 ```
+
+Then you can go http://localhost:8080/
 
 ## How to send a file to the server
 
