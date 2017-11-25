@@ -34,17 +34,19 @@ object Tables {
 
 
   case class FileStore(fileId        : String,
+                       storePath     : String,
                        createdAt     : java.sql.Timestamp,
                        deadline      : java.sql.Timestamp,
                        nGetLimitOpt  : Option[Int])
 
   class FileStores(tag: Tag) extends Table[FileStore](tag, "file_stores"){
     val fileId         = column[String]("file_id", O.PrimaryKey)
+    val storePath      = column[String]("store_path")
     val createdAt      = column[java.sql.Timestamp]("created_at")
     val deadline       = column[java.sql.Timestamp]("deadline")
     val nGetLimitOpt   = column[Option[Int]]("n_get_limit_opt")
 
-    override def * = (fileId, createdAt, deadline, nGetLimitOpt) <> (FileStore.tupled, FileStore.unapply)
+    override def * = (fileId, storePath, createdAt, deadline, nGetLimitOpt) <> (FileStore.tupled, FileStore.unapply)
   }
 
 
