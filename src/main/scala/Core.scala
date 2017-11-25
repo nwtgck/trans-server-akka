@@ -223,20 +223,37 @@ class Core(db: Database, fileDbPath: String){
       (fileStore.nGetLimitOpt.isEmpty || fileStore.nGetLimitOpt > 0)
 
 
-  def removeDeadFiles(): Future[Unit] = {
+  /**
+    * Cleanup dead files
+    * @param ec
+    * @return
+    */
+  def removeDeadFiles()(implicit ec: ExecutionContext): Future[Unit] = {
 
-//    val deadFilesQuery =
-//      Tables.allFileStores
-//        .filter(fileStore => !isAliveFileStore(fileStore))
-//
-//    for{
-//       deadFiles <- db.run(deadFilesQuery.result)
-//
-//    } yield ()
+    // Generate deadFiles query
+    val deadFilesQuery =
+      Tables.allFileStores
+        .filter(fileStore => !isAliveFileStore(fileStore))
 
+    for{
+      // Get dead files
+      deadFiles <- db.run(deadFilesQuery.result)
+      // Delete dead fileStore in DB
+      _         <- db.run(deadFilesQuery.delete)
+      // Delete files in file DB
+      _         <- Future{
+        deadFiles.foreach{file =>
+          try {
+            new File(file.storePath).delete()
+          } catch {case e: Throwable =>
+            println(e)
+          }
+        }
+      }
 
-
-    ???
+      // Print for debugging
+      _         <- Future{println(s"Cleanup ${deadFiles.size} dead files")}
+    } yield ()
   }
 
   /**

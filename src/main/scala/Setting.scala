@@ -12,4 +12,5 @@ object Setting {
   val KEY_STORE_PASSWORD   : String         = "changeit"
   val DefaultStoreDuration : FiniteDuration = 1.hour
   val MaxStoreDuration     : FiniteDuration = 30.days
+  val CleanupDuration      : FiniteDuration = 1.minute
 }
