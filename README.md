@@ -2,6 +2,12 @@
 
 Transmit files by using only standard commands, `curl` or `wget`
 
+| branch | Travis status|
+| --- | --- |
+| [`master`](https://github.com/nwtgck/trans-server-akka/tree/master) | [![Build Status](https://travis-ci.org/nwtgck/trans-server-akka.svg?branch=master)](https://travis-ci.org/nwtgck/trans-server-akka) |
+| [`develop`](https://github.com/nwtgck/trans-server-akka/tree/develop) | [![Build Status](https://travis-ci.org/nwtgck/trans-server-akka.svg?branch=develop)](https://travis-ci.org/nwtgck/trans-server-akka) |
+
+
 ## Main features
 
 * Send/Get via only standard command, `curl` or `wget` (You don't have install any command!)
