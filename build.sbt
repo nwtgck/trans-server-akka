@@ -20,7 +20,10 @@ libraryDependencies ++= Seq(
   // Slick
   "com.typesafe.slick" %% "slick" % "3.1.1",
   "org.slf4j" % "slf4j-nop" % "1.7.21",
-  "com.h2database" % "h2" % "1.4.191"
+  "com.h2database" % "h2" % "1.4.191",
+
+  // ScalaTest
+  "org.scalatest" %% "scalatest" % "2.2.6" % "test"
 )
 
 enablePlugins(JavaAppPackaging)

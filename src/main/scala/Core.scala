@@ -118,7 +118,8 @@ class Core(db: Database){
               onComplete(storeFut){
                 case Success(fileId) =>
                   complete(s"${fileId}\n")
-                case _ =>
+                case f =>
+                  println(f)
                   complete("Upload failed") // TODO Change response
               }
             }
