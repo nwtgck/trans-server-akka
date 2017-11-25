@@ -43,7 +43,7 @@ object Main {
     import concurrent.ExecutionContext.Implicits.global
 
     // Create core system of trans server
-    val core: Core = new Core(db)
+    val core: Core = new Core(db, fileDbPath = Setting.File_DB_PATH)
 
 
     // Create File DB if non

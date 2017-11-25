@@ -17,7 +17,7 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Success, Try}
 
-class Core(db: Database){
+class Core(db: Database, fileDbPath: String){
   def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration)(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[String] = {
 
     import TimestampUtil.RichTimestampImplicit._
@@ -163,7 +163,7 @@ class Core(db: Database){
       } ~
       // "Get /xyz" for client-getting the specified file
       (get & path(Remaining)) { fileId =>
-        val gettingFilePath = List(File_DB_PATH, fileId).mkString(File.separator)
+        val gettingFilePath = List(fileDbPath, fileId).mkString(File.separator)
 
         val file = new File(gettingFilePath)
 
@@ -207,7 +207,7 @@ class Core(db: Database){
     // Generate File ID and storeFilePath
     do {
       fileId = generateRandomFileId()
-      storeFilePath = List(Setting.File_DB_PATH, fileId).mkString(File.separator)
+      storeFilePath = List(fileDbPath, fileId).mkString(File.separator)
     } while (new File(storeFilePath).exists())
     return (fileId, storeFilePath)
   }

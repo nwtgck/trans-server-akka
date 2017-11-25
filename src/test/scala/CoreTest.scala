@@ -1,3 +1,5 @@
+import java.nio.file.Files
+
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
 import slick.driver.H2Driver.api._
@@ -17,8 +19,11 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     db = Database.forConfig("h2mem-trans")
     // Create a tables
     Await.ready(Tables.createTablesIfNotExist(db), Duration.Inf)
+    // Temp directory for file DB
+    val tmpFileDbPath: String = Files.createTempDirectory("file_db_").toString
+    println(s"tmpFileDbPath: ${tmpFileDbPath}")
     // Create a core system
-    core = new Core(db)
+    core = new Core(db, fileDbPath = tmpFileDbPath)
   }
 
   test("[positive] send test") {
@@ -30,8 +35,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       // File ID length should be 3
       fileId.length shouldBe 3
     }
-
-    // TODO Remove db/file_db
   }
 
   test("[positive] send/get test") {
@@ -50,8 +53,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       // response should be original
       resContent shouldBe originalContent
     }
-
-    // TODO Remove db/file_db
   }
 
 }
