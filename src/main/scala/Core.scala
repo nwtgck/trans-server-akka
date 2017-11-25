@@ -103,7 +103,7 @@ class Core(db: Database, fileDbPath: String){
     } ~
       // "Post /" for client-sending a file
       (post & pathSingleSlash) {
-        parameter('duration.?, 'times.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String]) =>
+        parameter('duration.?, 'times.?, 'length.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String]) =>
 
           println(s"durationStrOpt: ${durationStrOpt}")
 
@@ -123,12 +123,19 @@ class Core(db: Database, fileDbPath: String){
           } yield nGetLimit
           println(s"nGetLimitOpt: ${nGetLimitOpt}")
 
+          // Generate idLengthOpt
+          val idLengthOpt: Option[Int] = for {
+            idLengthStr <- idLengthStrOpt
+            idLength    <- Try(idLengthStr.toInt).toOption
+          } yield idLength
+          println(s"idLengthOpt: ${idLengthOpt}")
+
           // Get a file from client and store it
           // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
           withoutSizeLimit {
             extractDataBytes { bytes =>
               // Store bytes to DB
-              val storeFut: Future[FileId] = storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt = None) // TODO impl None
+              val storeFut: Future[FileId] = storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt)
 
               onComplete(storeFut){
                 case Success(fileId) =>
@@ -144,7 +151,7 @@ class Core(db: Database, fileDbPath: String){
       // "Post /" for client-sending a file
       (post & path("multipart") & entity(as[Multipart.FormData])) { formData =>
 
-        parameter('duration.?, 'times.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String]) =>
+        parameter('duration.?, 'times.?, 'length.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String]) =>
 
           // Get duration
           val duration: FiniteDuration =
@@ -162,12 +169,19 @@ class Core(db: Database, fileDbPath: String){
           } yield nGetLimit
           println(s"nGetLimitOpt: ${nGetLimitOpt}")
 
+          // Generate idLengthOpt
+          val idLengthOpt: Option[Int] = for {
+            idLengthStr <- idLengthStrOpt
+            idLength    <- Try(idLengthStr.toInt).toOption
+          } yield idLength
+          println(s"idLengthOpt: ${idLengthOpt}")
+
           val fileIdsSource: Source[FileId, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
             // Get data bytes
             val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
 
             // Store bytes to DB
-            storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt = None) // TODO impl None
+            storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt)
           }
 
           val fileIdsFut: Future[List[FileId]] = fileIdsSource.runFold(List.empty[FileId])((l, s) => l :+ s)
