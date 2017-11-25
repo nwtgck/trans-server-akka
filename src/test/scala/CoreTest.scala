@@ -71,6 +71,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Thread.sleep((durationSec - 2)*1000)
 
     Get(s"/${fileId}") ~> core.route ~> check {
+      // Get response file content
       val resContent: String = responseAs[String]
       // response should be original
       resContent shouldBe originalContent
@@ -91,6 +92,35 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
     Thread.sleep((durationSec + 2)*1000)
 
+    Get(s"/${fileId}") ~> core.route ~> check {
+      // The status should be 404
+      response.status shouldBe StatusCodes.NotFound
+    }
+  }
+
+  test("[positive/negative] send/get times") {
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+    var fileId     : String = null
+    val times      : Int    = 5
+    Post(s"/?times=${times}").withEntity(originalContent) ~> core.route ~> check {
+      // Get file ID
+      fileId = responseAs[String].trim
+      println(s"fileId: ${fileId}")
+      // File ID length should be 3
+      fileId.length shouldBe 3
+    }
+
+    // Success to get
+    for(_ <- 1 to times){
+      Get(s"/${fileId}") ~> core.route ~> check {
+        // Get response file content
+        val resContent: String = responseAs[String]
+        // response should be original
+        resContent shouldBe originalContent
+      }
+    }
+
+    // Fail to get because of times-limit
     Get(s"/${fileId}") ~> core.route ~> check {
       // The status should be 404
       response.status shouldBe StatusCodes.NotFound
