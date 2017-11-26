@@ -8,11 +8,11 @@ Transmit files by using **only common Uninx/Linux commands, `curl` or `wget`**
 | [`develop`](https://github.com/nwtgck/trans-server-akka/tree/develop) | [![Build Status](https://travis-ci.org/nwtgck/trans-server-akka.svg?branch=develop)](https://travis-ci.org/nwtgck/trans-server-akka) |
 
 
-## Why `trans`?
+## Why trans?
 
 File transmitting between different devices annoying problem. There are already many file-transfer services on Web. However, most of these requires to **make us to sign up** or **install additional applications** to use them.
 
-`trans` server is created to solve these problems. You can send/get by **only common Unix/Linux commands** or **on your browser**.
+trans server is created to solve these problems. You can send/get by **only common Unix/Linux commands** or **on your browser**.
 
 
 ## Main features
@@ -85,7 +85,7 @@ $ sbt assembly
 #### 3. Run the jar
 
 ```sh
-$ sudo java -jar target/scala-2.11/trans-server-akka-assembly-1.0.jar 80 443
+$ sudo java -jar target/scala-2.11/trans-server-akka.jar 80 443
 ```
 
 ## How to send a file to the server
