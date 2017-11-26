@@ -1,0 +1,3 @@
+[submodule "trans-client-web"]
+	path = trans-client-web
+	url = git@github.com:nwtgck/trans-client-web.git
