@@ -121,7 +121,7 @@ class Core(db: Database, fileDbPath: String){
     (get & pathSingleSlash) {
       //      complete(<h1>trans server is runnning</h1>)
       complete {
-        val indexFile = new File("public_html/index.html")
+        val indexFile = new File("trans-client-web/index.html")
         HttpEntity.fromPath(ContentTypes.`text/html(UTF-8)`, indexFile.toPath)
       }
     } ~
