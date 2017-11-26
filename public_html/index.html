@@ -8,7 +8,7 @@
         angular.module('trans', [])
             .controller('transCtrl', ["$scope", ($scope) => {
                 $scope.location      = window.location;
-                $scope.option        = {
+                const defaultOption  = {
                     durationValue : 1,
                     durationUnit  : 'h',
                     times         : 100,
@@ -17,6 +17,26 @@
                     hasDeleteKey  : false,
                     deleteKey     : "1234"
                 };
+                $scope.option              = Object.assign({}, defaultOption); // Deep copy
+
+                $scope.sampleOptions = [
+                    {name: "default", func: () =>{
+                        $scope.option = defaultOption;
+                    }},
+                    {name: "Onetime", func: () => {
+                        $scope.option.times = 1;
+                    }},
+                    {name: "Safe (Lv.1)", func: () => {
+                        $scope.option.times    = 1;
+                        $scope.option.idLength = 5; 
+                    }},
+                    {name: "Safe (Lv.2)", func: () => {
+                        $scope.option.times    = 1;
+                        $scope.option.idLength = 8; 
+                    }}
+                ];
+                $scope.currentSampleOption = $scope.sampleOptions[0];
+                
                 
                 $scope.formAction = () => {
                     const params = [];
@@ -43,7 +63,14 @@
         <form action="{{formAction()}}" method="post" enctype="multipart/form-data">
             <h3>File input</h3>
             <input type="file" name="input_file" multiple="multiple"><br>
+
+
+            <h3>Option shortcuts</h3>
+            <select ng-model='currentSampleOption' ng-options="sampleOption.name for sampleOption in sampleOptions" ng-change="currentSampleOption.func()" class="form-control" id="sampleOptions">
+            </select><br>
+
             <h3>Options</h3>
+      
             Duration:
             <input type="number" ng-model="option.durationValue">
             <select ng-model="option.durationUnit">
