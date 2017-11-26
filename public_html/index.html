@@ -4,10 +4,13 @@
     <meta charset="utf-8">
     <title>trans - Transmit files</title>
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular-sanitize.min.js"></script>
+    
     <script>
-        angular.module('trans', [])
-            .controller('transCtrl', ["$scope", ($scope) => {
-                $scope.location      = window.location;
+        angular.module('trans', ['ngSanitize'])
+            .controller('transCtrl', ["$scope", "$sce", ($scope, $sce) => {
+                $scope.serverUrl     =
+                    `${window.location.protocol}//${window.location.hostname}${(window.location.port == 80 || window.location.port == '' ? '': ':'+window.location.port)}`;                
                 const defaultOption  = {
                     durationValue : 1,
                     durationUnit  : 'h',
@@ -50,17 +53,22 @@
                         params.push(`key=${$scope.option.deleteKey}`);
                     }
 
-                    return `/multipart?${params.join('&')}`
+                    const action = `${$scope.serverUrl}/multipart?${params.join('&')}`;
+                    return $sce.trustAsResourceUrl(action); // (from: https://stackoverflow.com/a/22577208/2885946)
                 };
-
+                
             }]);
     </script>
 </head>
 <body>
     <div ng-controller="transCtrl">
-        <h1>trans</h1>
-        <h2>Send from browser</h2>
+        <h1>trans clinet for browser</h1>
+
         <form action="{{formAction()}}" method="post" enctype="multipart/form-data">
+            <h3>Request Server URL</h3>
+            <input type="text" ng-model="serverUrl">
+            <br>
+
             <h3>File input</h3>
             <input type="file" name="input_file" multiple="multiple"><br>
 
@@ -94,7 +102,7 @@
         <h2>Command line usage</h2>
         <h3>Send with wget</h3>
         <code>
-            wget -q -O - {{location.protocol}}//{{location.hostname}}{{(location.port == 80 || location.port == '' ? '': ':'+location.port)}}/ --post-file=./test.txt
+            wget -q -O - {{serverUrl}} --post-file=./test.txt
         </code>
         <ul>
             <li>"./text.txt" is a file you want send</li>
@@ -104,7 +112,7 @@
 
         <h3>Get with wget</h3>
         <code>
-            wget {{location.protocol}}//{{location.hostname}}{{(location.port == 80 || location.port == '' ? '': ':'+location.port)}}/ab2
+            wget {{serverUrl}}/ab2
         </code>
         <ul>
             <li>"ab2" is a file ID, which is generated after sending</li>
