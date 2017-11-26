@@ -6,21 +6,64 @@
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
     <script>
         angular.module('trans', [])
-            .controller('cuiExplainCtrl', ["$scope", function(scope){
-                scope.location = window.location;
+            .controller('transCtrl', ["$scope", ($scope) => {
+                $scope.location      = window.location;
+                $scope.option        = {
+                    durationValue : 1,
+                    durationUnit  : 'h',
+                    times         : 100,
+                    idLength      : 3,
+                    deletable     : true,
+                    hasDeleteKey  : false,
+                    deleteKey     : "1234"
+                };
+                
+                $scope.formAction = () => {
+                    const params = [];
+
+                    params.push(`duration=${$scope.option.durationValue}${$scope.option.durationUnit}`);
+                    params.push(`times=${$scope.option.times}`);
+                    params.push(`length=${$scope.option.idLength}`);
+                    params.push(`deletable=${$scope.option.deletable}`);
+
+                    if($scope.option.hasDeleteKey){
+                        params.push(`key=${$scope.option.deleteKey}`);
+                    }
+
+                    return `/multipart?${params.join('&')}`
+                };
+
             }]);
     </script>
 </head>
 <body>
-    <h1>trans</h1>
-    <h2>Send from browser</h2>
-    <form action="/multipart" method="post" enctype="multipart/form-data">
-        <input type="file" name="input_file" multiple="multiple">
-        <input type="submit" value="submit">
-    </form>
-    <hr/>
+    <div ng-controller="transCtrl">
+        <h1>trans</h1>
+        <h2>Send from browser</h2>
+        <form action="{{formAction()}}" method="post" enctype="multipart/form-data">
+            <h3>File input</h3>
+            <input type="file" name="input_file" multiple="multiple"><br>
+            <h3>Options</h3>
+            Duration:
+            <input type="number" ng-model="option.durationValue">
+            <select ng-model="option.durationUnit">
+                <option value="s">seconds</option>
+                <option value="m">minutes</option>
+                <option value="h">hours</option>
+                <option value="d">days</option>
+            </select><br>
+            Download times:
+            <input type="number" ng-model="option.times"><br>
+            File ID length:
+            <input type="number" ng-model="option.idLength"><br>
+            Deletable: <input type="checkbox" ng-model="option.deletable"><br>
+            Has delete key: <input type="checkbox" ng-model="option.hasDeleteKey"><br>
+            Delete key: <input type="text" ng-model="option.deleteKey" ng-disabled="!option.hasDeleteKey"><br>
+            <br>
+            <input type="submit" value="submit">
+        </form>
+        <hr/>
 
-    <div ng-controller="cuiExplainCtrl">
         <h2>Command line usage</h2>
         <h3>Send with wget</h3>
         <code>
