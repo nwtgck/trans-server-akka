@@ -31,6 +31,16 @@ docker run -p 8080:80 nwtgck/trans-server-akka
 
 Then you can go http://localhost:8080/
 
+#### Docker run for daemonize and data persistence
+
+You can also run the following command for **daemonize** and **data persistence**.
+
+```bash
+docker run -d -p 8080:80 -v $PWD/trans-db:/trans/db --restart=always nwtgck/trans-server-akka:v1.3.0
+```
+
+Data will be stored in `$PWD/trans-db` on your host machine. (Currently file-base H2 database is used, and files sent are stored as raw files)
+
 ### Way 2 - sbt "run-main ..."
 
 The following example is running on 80 port.
