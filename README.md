@@ -1,6 +1,6 @@
-# trans - Transmit a file anywhere
+# trans - Transmit a file by only standard commands
 
-Transmit files by using only standard commands, `curl` or `wget`
+Transmit files by using **only common Uninx/Linux commands, `curl` or `wget`**
 
 | branch | Travis status|
 | --- | --- |
@@ -8,10 +8,24 @@ Transmit files by using only standard commands, `curl` or `wget`
 | [`develop`](https://github.com/nwtgck/trans-server-akka/tree/develop) | [![Build Status](https://travis-ci.org/nwtgck/trans-server-akka.svg?branch=develop)](https://travis-ci.org/nwtgck/trans-server-akka) |
 
 
+## Why `trans`?
+
+File transmitting between different devices annoying problem. There are already many file-transfer services on Web. However, most of these requires to **make us to sign up** or **install additional applications** to use them.
+
+`trans` server is created to solve these problems. You can send/get by **only common Unix/Linux commands** or **on your browser**.
+
+
 ## Main features
 
-* Send/Get via **only standard commands**, `curl` or `wget` (You don't have install any command!)
-* Send/Get **on your browser** 
+* Send/Get by **only common commands**, `curl` or `wget`
+* Send/Get **on your browser**
+* Send/Get with some limitations
+  - store duration
+  - how many times you can download
+* Delete files you sent
+  - without delete key
+  - with delete key
+* Change File ID length (for security)
 
 ## Public Server on Heroku 
 
@@ -39,7 +53,7 @@ You can also run the following command for **daemonize** and **data persistence*
 docker run -d -p 8080:80 -v $PWD/trans-db:/trans/db --restart=always nwtgck/trans-server-akka:v1.3.0
 ```
 
-Data will be stored in `$PWD/trans-db` on your host machine. (Currently file-base H2 database is used, and files sent are stored as raw files)
+Data will be stored in `$PWD/trans-db` on your host machine. (Currently file-base H2 database is used, and files sent are stored as raw files)
 
 ### Way 2 - sbt "run-main ..."
 
@@ -188,6 +202,69 @@ $ curl https://trans-akka.herokuapp.com/ab2 > test.txt
 Access to `https://trans-akka.herokuapp.com/ab2`
 
 `ab2` is a File ID.
+
+
+## Sending options
+
+|GET parameter | default value | decription |
+|---|---:|---|
+| `duration`   | 1 hour        | Store duration/life             |
+| `times`      | any times     | How many times you can download |
+| `length`     | `3`           | Length of File ID               |
+| `deletable`  | `false`       | Whether a file can be deleted   |
+| `key`        | nothing       | Key for deletion                | 
+
+### An example with options
+
+```bash
+wget -q -O - 'https://trans-akka.herokuapp.com/?duration=30s&times=1&length=16&deletable&key=mykey1234' --post-file=./hello.txt
+```
+
+The command means
+* duration is 30 seconds
+* download once
+* File ID length is 16
+* The file is deletable and key is `'mykey1234'`
+
+### Available duration examples
+* `10s` - 10 seconds
+* `2m`  - 2 minutes
+* `12h` - 12 hours
+* `25d` - 25 days
+
+### Usage of `deletable`
+
+All bellow are valid usage.
+
+```bash
+'https://trans-akka.herokuapp.com/?deletable'
+# (same meaning as `deletable=true`)
+```
+
+```bash
+'https://trans-akka.herokuapp.com/?deletable=true'
+```
+
+```bash
+'https://trans-akka.herokuapp.com/?deletable=false'
+```
+
+
+## Delete file
+
+Here is an example
+
+```bash
+# wget version
+wget -q -O - --method=DELETE 'https://trans-akka.herokuapp.com/vua'
+```
+
+```bash
+# curl version
+curl -X DELETE 'https://trans-akka.herokuapp.com/vua'
+```
+(`vua` is a File ID)
+
 
 
 ## How to deploy on Heroku
