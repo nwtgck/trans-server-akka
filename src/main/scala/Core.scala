@@ -323,7 +323,7 @@ class Core(db: Database, fileDbPath: String){
     // for routing DSL
     import akka.http.scaladsl.server.Directives._
 
-    parameter("duration".?, "get-times".?, "id-length".?, "deletable".?, "key".?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String]) =>
+    parameter("duration".?, "get-times".?, "id-length".?, "deletable".?, "delete-key".?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String]) =>
 
       println(s"durationStrOpt: ${durationStrOpt}")
 

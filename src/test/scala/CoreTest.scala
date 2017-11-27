@@ -286,7 +286,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
 
     // Delete the file
-    Delete(s"/${fileId}?key=${deleteKey}") ~> core.route ~> check {
+    Delete(s"/${fileId}?delete-key=${deleteKey}") ~> core.route ~> check {
       // Status should be OK
       response.status shouldBe StatusCodes.OK
     }
@@ -302,7 +302,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     var fileId   : String = null
     val deleteKey: String = "mykey1234"
-    Post(s"/?deletable&key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
+    Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
     }
