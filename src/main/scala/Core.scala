@@ -1,20 +1,19 @@
 import java.io.File
 import java.nio.file.StandardOpenOption
-import javax.crypto.spec.IvParameterSpec
+import javax.crypto.Cipher
 
+import Tables.OriginalTypeImplicits._
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{FileIO, Keep, Source}
+import akka.stream.scaladsl.{FileIO, Source}
 import akka.util.ByteString
 import slick.driver.H2Driver.api._
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Random, Success, Try}
-import Tables.OriginalTypeImplicits._
-import akka.NotUsed
 
 
 /**
@@ -74,22 +73,11 @@ class Core(db: Database, fileDbPath: String){
       else
         None
 
-    // Initialize Cipher
-    // (from: http://www.suzushin7.jp/entry/2016/11/25/aes-encryption-and-decryption-in-java/)
-    // (from: https://stackoverflow.com/a/17323025/2885946)
-    // (from: https://stackoverflow.com/a/21155176/2885946)
-    import javax.crypto.Cipher
-    val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding") // TODO Hard corded
-    import javax.crypto.Cipher
-    import javax.crypto.spec.SecretKeySpec
-    val key: String = "YKo83n14SWf7o8G5" // TODO Hard corded
-    cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key.getBytes, "AES"), new IvParameterSpec(new Array[Byte](cipher.getBlockSize))) // TODO Hard corded
-
     for {
       // Store the file
       ioResult   <- byteSource
         // Encrypt data
-        .via(CipherFlow.flow(cipher))
+        .via(CipherFlow.flow(genEncryptCipher()))
         // Save to file
         .runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
       // Create file store object
@@ -143,7 +131,6 @@ class Core(db: Database, fileDbPath: String){
     import akka.http.scaladsl.server.Directives._
     // for using XML
     // for using settings
-    import Setting._
     // for Futures
     import concurrent.ExecutionContext.Implicits.global
 
@@ -237,30 +224,12 @@ class Core(db: Database, fileDbPath: String){
               onComplete(db.run(decrementDbio)){
                 case Success(_) =>
 
-                  // Initialize Cipher
-                  // (from: http://www.suzushin7.jp/entry/2016/11/25/aes-encryption-and-decryption-in-java/)
-                  // (from: https://stackoverflow.com/a/17323025/2885946)
-                  // (from: https://stackoverflow.com/a/21155176/2885946)
-                  import javax.crypto.Cipher
-                  val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding") // TODO Hard corded
-                  import javax.crypto.Cipher
-                  import javax.crypto.spec.SecretKeySpec
-                  import javax.crypto.spec.IvParameterSpec
-
-                  val key: String = "YKo83n14SWf7o8G5" // TODO Hard corded
-                  cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key.getBytes, "AES"), new IvParameterSpec(new Array[Byte](cipher.getBlockSize))) // TODO Hard corded
-
-                  val source = FileIO.fromPath(file.toPath).via(CipherFlow.flow(cipher))
-
+                  val source =
+                    FileIO.fromPath(file.toPath)
+                      .via(CipherFlow.flow(genDecryptCipher()))
 
                   complete(HttpEntity(ContentTypes.NoContentType, source))
 
-//                  complete(source.mapMaterializedValue(_ => NotUsed))
-//                  complete(source.viaMat(Keep.none))
-
-//                  complete(
-//                    HttpEntity.fromPath(ContentTypes.NoContentType, file.toPath)
-//                  )
                 case _ =>
                   complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
               }
@@ -388,6 +357,36 @@ class Core(db: Database, fileDbPath: String){
 
       f(GetParams(duration=duration, nGetLimitOpt=nGetLimitOpt, idLengthOpt=idLengthOpt, isDeletable=isDeletable, deleteKeyOpt=deleteKeyOpt))
     }
+  }
+
+  private def genEncryptCipher(): Cipher = {
+    // Initialize Cipher
+    // (from: http://www.suzushin7.jp/entry/2016/11/25/aes-encryption-and-decryption-in-java/)
+    // (from: https://stackoverflow.com/a/17323025/2885946)
+    // (from: https://stackoverflow.com/a/21155176/2885946)
+    val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+    import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
+    cipher.init(
+      Cipher.ENCRYPT_MODE,
+      new SecretKeySpec(Setting.FileEncryptionKey.getBytes, "AES"),
+      new IvParameterSpec(new Array[Byte](cipher.getBlockSize))
+    )
+    cipher
+  }
+
+  private def genDecryptCipher(): Cipher = {
+    // Initialize Cipher
+    // (from: http://www.suzushin7.jp/entry/2016/11/25/aes-encryption-and-decryption-in-java/)
+    // (from: https://stackoverflow.com/a/17323025/2885946)
+    // (from: https://stackoverflow.com/a/21155176/2885946)
+    val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+    import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
+    cipher.init(
+      Cipher.DECRYPT_MODE,
+      new SecretKeySpec(Setting.FileEncryptionKey.getBytes, "AES"),
+      new IvParameterSpec(new Array[Byte](cipher.getBlockSize))
+    )
+    cipher
   }
 
   /**
