@@ -253,7 +253,7 @@ class Core(db: Database, fileDbPath: String){
     } ~
     // Delete file by ID
     (delete & path(Remaining)) { fileIdStr =>
-      parameter('key.?) { (deleteKeyOpt: Option[String]) =>
+      parameter("delete-key".?) { (deleteKeyOpt: Option[String]) =>
 
         // Generate file ID instance
         val fileId: FileId = FileId(fileIdStr)
