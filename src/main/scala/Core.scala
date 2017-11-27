@@ -345,7 +345,7 @@ class Core(db: Database, fileDbPath: String){
           case _ => Some(false)
         }
       } yield b)
-        .getOrElse(false)
+        .getOrElse(true) // NOTE: Default isDeletable is true
 
       f(GetParams(duration=duration, nGetLimitOpt=nGetLimitOpt, idLengthOpt=idLengthOpt, isDeletable=isDeletable, deleteKeyOpt=deleteKeyOpt))
     }
