@@ -128,7 +128,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     var fileId     : String = null
     val times      : Int    = 5
-    Post(s"/?times=${times}").withEntity(originalContent) ~> core.route ~> check {
+    Post(s"/?get-times=${times}").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
       println(s"fileId: ${fileId}")
