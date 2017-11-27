@@ -15,6 +15,20 @@ import scala.util.{Random, Success, Try}
 import Tables.OriginalTypeImplicits._
 
 
+/**
+  * Available GET parameters
+  * @param duration
+  * @param nGetLimitOpt
+  * @param idLengthOpt
+  * @param isDeletable
+  * @param deleteKeyOpt
+  */
+private [this] case class GetParams(duration     : FiniteDuration,
+                                    nGetLimitOpt : Option[Int],
+                                    idLengthOpt  : Option[Int],
+                                    isDeletable  : Boolean,
+                                    deleteKeyOpt : Option[String])
+
 class Core(db: Database, fileDbPath: String){
 
 
@@ -125,235 +139,216 @@ class Core(db: Database, fileDbPath: String){
         HttpEntity.fromPath(ContentTypes.`text/html(UTF-8)`, indexFile.toPath)
       }
     } ~
-      // "Post /" for client-sending a file
-      (post & pathSingleSlash) {
-        parameter('duration.?, 'times.?, 'length.?, 'deletable.?, 'key.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String]) =>
+    // "Post /" for client-sending a file
+    (post & pathSingleSlash) {
 
-          println(s"durationStrOpt: ${durationStrOpt}")
+      // Process GET Parameters
+      processGetParamsRoute{getParams =>
+        // Get a file from client and store it
+        // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
+        withoutSizeLimit {
+          extractDataBytes { bytes =>
+            // Store bytes to DB
+            val storeFut: Future[FileId] = storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt)
 
-          println(s"isDeletableStrOpt: ${isDeletableStrOpt}")
-
-          // Get duration
-          val duration: FiniteDuration =
-            (for{
-              durationStr <- durationStrOpt
-              durationSec <- strToDurationSecOpt(durationStr)
-            } yield durationSec.seconds)
-              .getOrElse(DefaultStoreDuration)
-          println(s"Duration: ${duration}")
-
-          // Generate nGetLimitOpt
-          val nGetLimitOpt: Option[Int] = for {
-            nGetLimitStr <- nGetLimitStrOpt
-            nGetLimit    <- Try(nGetLimitStr.toInt).toOption
-          } yield nGetLimit
-          println(s"nGetLimitOpt: ${nGetLimitOpt}")
-
-          // Generate idLengthOpt
-          val idLengthOpt: Option[Int] = for {
-            idLengthStr <- idLengthStrOpt
-            idLength    <- Try(idLengthStr.toInt).toOption
-          } yield idLength
-          println(s"idLengthOpt: ${idLengthOpt}")
-
-          // Generate isDeletable
-          val isDeletable: Boolean = (for{
-            deletableStr <- isDeletableStrOpt
-            b            <- deletableStr match {
-              case ""      => Some(true)
-              case "true"  => Some(true)
-              case "false" => Some(false)
-              case _       => Some(false)
+            onComplete(storeFut){
+              case Success(fileId) =>
+                complete(s"${fileId.value}\n")
+              case f =>
+                println(f)
+                complete("Upload failed") // TODO Change response
             }
-          } yield b)
-            .getOrElse(false)
+          }
+        }
+      }
+
+    } ~
+    // "Post /" for client-sending a file
+    (post & path("multipart") & entity(as[Multipart.FormData])) { formData =>
+
+      // Process GET Parameters
+      processGetParamsRoute{getParams =>
+        val fileIdsSource: Source[FileId, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
+          // Get data bytes
+          val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
+
+          // Store bytes to DB
+          storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt)
+        }
+
+        val fileIdsFut: Future[List[FileId]] = fileIdsSource.runFold(List.empty[FileId])((l, s) => l :+ s)
 
 
-          // Get a file from client and store it
-          // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
-          withoutSizeLimit {
-            extractDataBytes { bytes =>
-              // Store bytes to DB
-              val storeFut: Future[FileId] = storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt, isDeletable, deleteKeyOpt)
+        onComplete(fileIdsFut) {
+          case Success(fileIds) =>
+            complete(fileIds.map(_.value).mkString("\n"))
+          case _ =>
+            complete("Upload failed") // TODO Change response
+        }
+      }
+    } ~
+    // "Get /xyz" for client-getting the specified file
+    (get & path(Remaining)) { fileIdStr =>
 
-              onComplete(storeFut){
-                case Success(fileId) =>
-                  complete(s"${fileId.value}\n")
-                case f =>
-                  println(f)
-                  complete("Upload failed") // TODO Change response
+      // Generate file ID instance
+      val fileId: FileId = FileId(fileIdStr)
+
+      // Check existence of valid(=not expired) file store
+      val existsFileStoreFut: Future[Option[FileStore]] =  db.run(
+        Tables.allFileStores
+          .filter(fileStore =>  fileStore.fileId === fileId && isAliveFileStore(fileStore))
+          .result
+          .headOption
+      )
+      onComplete(existsFileStoreFut){
+
+        // If file is alive (not expired and exist)
+        case Success(Some(fileStore)) =>
+          // Generate file instance
+          val file = new File(fileStore.storePath)
+          // File exists
+          if (file.exists()) {
+            withRangeSupport { // Range support for `pget`
+              // Create decrement-nGetLimit-DBIO (TODO decrementing nGetLimit may need mutual execution)
+              val decrementDbio = for {
+                // Find file store
+                fileStore <- Tables.allFileStores.filter(_.fileId === fileId).result.head
+                // Decrement nGetLimit
+                _         <- Tables.allFileStores.filter(_.fileId === fileId).map(_.nGetLimitOpt).update(fileStore.nGetLimitOpt.map(_ - 1))
+              } yield ()
+
+              onComplete(db.run(decrementDbio)){
+                case Success(_) =>
+                  complete(
+                    HttpEntity.fromPath(ContentTypes.NoContentType, file.toPath)
+                  )
+                case _ =>
+                  complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
               }
             }
+          } else {
+            complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
           }
-        }
-      } ~
-      // "Post /" for client-sending a file
-      (post & path("multipart") & entity(as[Multipart.FormData])) { formData =>
+        case _ =>
+          complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found or expired\n")
+      }
 
-        parameter('duration.?, 'times.?, 'length.?, 'deletable.?, 'key.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String]) =>
-
-          // Get duration
-          val duration: FiniteDuration =
-            (for{
-              durationStr <- durationStrOpt
-              durationSec <- strToDurationSecOpt(durationStr)
-            } yield durationSec.seconds)
-              .getOrElse(DefaultStoreDuration)
-          println(s"Duration: ${duration}")
-
-          // Generate nGetLimitOpt
-          val nGetLimitOpt: Option[Int] = for {
-            nGetLimitStr <- nGetLimitStrOpt
-            nGetLimit    <- Try(nGetLimitStr.toInt).toOption
-          } yield nGetLimit
-          println(s"nGetLimitOpt: ${nGetLimitOpt}")
-
-          // Generate idLengthOpt
-          val idLengthOpt: Option[Int] = for {
-            idLengthStr <- idLengthStrOpt
-            idLength    <- Try(idLengthStr.toInt).toOption
-          } yield idLength
-          println(s"idLengthOpt: ${idLengthOpt}")
-
-          // Generate isDeletable
-          val isDeletable: Boolean = (for{
-            deletableStr <- isDeletableStrOpt
-            b            <- deletableStr match {
-              case ""      => Some(true)
-              case "true"  => Some(true)
-              case "false" => Some(false)
-              case _       => Some(false)
-            }
-          } yield b)
-            .getOrElse(false)
-
-          val fileIdsSource: Source[FileId, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
-            // Get data bytes
-            val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
-
-            // Store bytes to DB
-            storeBytes(bytes, duration, nGetLimitOpt, idLengthOpt, isDeletable, deleteKeyOpt)
-          }
-
-          val fileIdsFut: Future[List[FileId]] = fileIdsSource.runFold(List.empty[FileId])((l, s) => l :+ s)
-
-
-          onComplete(fileIdsFut) {
-            case Success(fileIds) =>
-              complete(fileIds.map(_.value).mkString("\n"))
-            case _ =>
-              complete("Upload failed") // TODO Change response
-          }
-        }
-      } ~
-      // "Get /xyz" for client-getting the specified file
-      (get & path(Remaining)) { fileIdStr =>
+    } ~
+    // Delete file by ID
+    (delete & path(Remaining)) { fileIdStr =>
+      parameter('key.?) { (deleteKeyOpt: Option[String]) =>
 
         // Generate file ID instance
         val fileId: FileId = FileId(fileIdStr)
 
-        // Check existence of valid(=not expired) file store
+        // Generate hashed delete key
+        val hashedDeleteKeyOpt: Option[String] =
+          deleteKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
+
+        // Check existence of valid(=not expired and deletable and has the same key) file store
         val existsFileStoreFut: Future[Option[FileStore]] =  db.run(
           Tables.allFileStores
-            .filter(fileStore =>  fileStore.fileId === fileId && isAliveFileStore(fileStore))
+            .filter(fileStore =>
+              fileStore.fileId === fileId &&
+              isAliveFileStore(fileStore) &&
+              fileStore.isDeletable &&
+
+              // NOTE: THIS if-else is for equality of NULL
+              (if(hashedDeleteKeyOpt.isDefined)
+                (fileStore.hashedDeleteKeyOpt === hashedDeleteKeyOpt).getOrElse(false) // NOTE: I'm not sure that .getOrElse(false) is correct
+                else
+                 fileStore.hashedDeleteKeyOpt.isEmpty
+              )
+            )
             .result
             .headOption
         )
         onComplete(existsFileStoreFut){
-
           // If file is alive (not expired and exist)
           case Success(Some(fileStore)) =>
             // Generate file instance
             val file = new File(fileStore.storePath)
             // File exists
             if (file.exists()) {
-              withRangeSupport { // Range support for `pget`
-                // Create decrement-nGetLimit-DBIO (TODO decrementing nGetLimit may need mutual execution)
-                val decrementDbio = for {
-                  // Find file store
-                  fileStore <- Tables.allFileStores.filter(_.fileId === fileId).result.head
-                  // Decrement nGetLimit
-                  _         <- Tables.allFileStores.filter(_.fileId === fileId).map(_.nGetLimitOpt).update(fileStore.nGetLimitOpt.map(_ - 1))
-                } yield ()
 
-                onComplete(db.run(decrementDbio)){
-                  case Success(_) =>
-                    complete(
-                      HttpEntity.fromPath(ContentTypes.NoContentType, file.toPath)
-                    )
-                  case _ =>
-                    complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
+              val fut: Future[Unit] = for{
+                // Delete the file store by ID
+                _ <- db.run(Tables.allFileStores.filter(_.fileId === fileId).delete)
+                // Delete the file
+                _ <- Future.successful{
+                  new File(fileStore.storePath).delete()
                 }
+              } yield ()
+              onComplete(fut){
+                case Success(_) =>
+                  complete("Deleted successfully\n")
+                case _ =>
+                  complete(StatusCodes.InternalServerError, s"Server error in delete a file\n")
               }
             } else {
               complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
             }
           case _ =>
-            complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found or expired\n")
+            complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found, expired or not deletable\n")
         }
 
-      } ~
-      // Delete file by ID
-      (delete & path(Remaining)) { fileIdStr =>
-        parameter('key.?) { (deleteKeyOpt: Option[String]) =>
 
-          // Generate file ID instance
-          val fileId: FileId = FileId(fileIdStr)
-
-          // Generate hashed delete key
-          val hashedDeleteKeyOpt: Option[String] =
-            deleteKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
-
-          // Check existence of valid(=not expired and deletable and has the same key) file store
-          val existsFileStoreFut: Future[Option[FileStore]] =  db.run(
-            Tables.allFileStores
-              .filter(fileStore =>
-                fileStore.fileId === fileId &&
-                isAliveFileStore(fileStore) &&
-                fileStore.isDeletable &&
-
-                // NOTE: THIS if-else is for equality of NULL
-                (if(hashedDeleteKeyOpt.isDefined)
-                  (fileStore.hashedDeleteKeyOpt === hashedDeleteKeyOpt).getOrElse(false) // NOTE: I'm not sure that .getOrElse(false) is correct
-                  else
-                   fileStore.hashedDeleteKeyOpt.isEmpty
-                )
-              )
-              .result
-              .headOption
-          )
-          onComplete(existsFileStoreFut){
-            // If file is alive (not expired and exist)
-            case Success(Some(fileStore)) =>
-              // Generate file instance
-              val file = new File(fileStore.storePath)
-              // File exists
-              if (file.exists()) {
-
-                val fut: Future[Unit] = for{
-                  // Delete the file store by ID
-                  _ <- db.run(Tables.allFileStores.filter(_.fileId === fileId).delete)
-                  // Delete the file
-                  _ <- Future.successful{
-                    new File(fileStore.storePath).delete()
-                  }
-                } yield ()
-                onComplete(fut){
-                  case Success(_) =>
-                    complete("Deleted successfully\n")
-                  case _ =>
-                    complete(StatusCodes.InternalServerError, s"Server error in delete a file\n")
-                }
-              } else {
-                complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
-              }
-            case _ =>
-              complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found, expired or not deletable\n")
-          }
-
-
-        }
       }
+    }
+  }
+
+  /**
+    * Process GET paramters
+    * @param f
+    * @return
+    */
+  def processGetParamsRoute(f: GetParams => Route): Route = {
+    // for routing DSL
+    import akka.http.scaladsl.server.Directives._
+
+    parameter('duration.?, 'times.?, 'length.?, 'deletable.?, 'key.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String]) =>
+
+      println(s"durationStrOpt: ${durationStrOpt}")
+
+      println(s"isDeletableStrOpt: ${isDeletableStrOpt}")
+
+      // Get duration
+      val duration: FiniteDuration =
+        (for {
+          durationStr <- durationStrOpt
+          durationSec <- strToDurationSecOpt(durationStr)
+        } yield durationSec.seconds)
+          .getOrElse(Setting.DefaultStoreDuration)
+      println(s"Duration: ${duration}")
+
+      // Generate nGetLimitOpt
+      val nGetLimitOpt: Option[Int] = for {
+        nGetLimitStr <- nGetLimitStrOpt
+        nGetLimit <- Try(nGetLimitStr.toInt).toOption
+      } yield nGetLimit
+      println(s"nGetLimitOpt: ${nGetLimitOpt}")
+
+      // Generate idLengthOpt
+      val idLengthOpt: Option[Int] = for {
+        idLengthStr <- idLengthStrOpt
+        idLength <- Try(idLengthStr.toInt).toOption
+      } yield idLength
+      println(s"idLengthOpt: ${idLengthOpt}")
+
+      // Generate isDeletable
+      val isDeletable: Boolean = (for {
+        deletableStr <- isDeletableStrOpt
+        b <- deletableStr match {
+          case "" => Some(true)
+          case "true" => Some(true)
+          case "false" => Some(false)
+          case _ => Some(false)
+        }
+      } yield b)
+        .getOrElse(false)
+
+      f(GetParams(duration=duration, nGetLimitOpt=nGetLimitOpt, idLengthOpt=idLengthOpt, isDeletable=isDeletable, deleteKeyOpt=deleteKeyOpt))
+    }
   }
 
   /**
