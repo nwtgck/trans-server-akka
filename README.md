@@ -212,15 +212,15 @@ Here is options you can use when sending
 |GET parameter | default value | decription |
 |---|---:|---|
 | `duration`   | 1 hour        | Store duration/life             |
-| `times`      | any times     | How many times you can download |
-| `length`     | `3`           | Length of File ID               |
+| `get-times`  | any times     | How many times you can download |
+| `id-length`  | `3`           | Length of File ID               |
 | `deletable`  | `true`        | Whether a file can be deleted   |
-| `key`        | nothing       | Key for deletion                | 
+| `delete-key` | nothing       | Key for deletion                | 
 
 ### An example with options
 
 ```bash
-wget -q -O - 'https://trans-akka.herokuapp.com/?duration=30s&times=1&length=16&deletable&key=mykey1234' --post-file=./hello.txt
+wget -q -O - 'https://trans-akka.herokuapp.com/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234' --post-file=./hello.txt
 ```
 
 The command means
@@ -272,12 +272,12 @@ curl -X DELETE 'https://trans-akka.herokuapp.com/vua'
 
 ```bash
 # wget version
-wget -q -O - --method=DELETE 'https://trans-akka.herokuapp.com/6em?key=1234'
+wget -q -O - --method=DELETE 'https://trans-akka.herokuapp.com/6em?delete-key=1234'
 ```
 
 ```bash
 # curl version
-curl -X DELETE 'https://trans-akka.herokuapp.com/6em?key=1234'
+curl -X DELETE 'https://trans-akka.herokuapp.com/6em?delete-key=1234'
 ```
 
 
