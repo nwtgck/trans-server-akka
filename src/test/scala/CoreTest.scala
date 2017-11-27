@@ -2,11 +2,13 @@ import java.nio.file.Files
 
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.util.ByteString
 import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
 import slick.driver.H2Driver.api._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import scala.util.Random
 
 
 class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with BeforeAndAfter {
@@ -51,6 +53,30 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
     Get(s"/${fileId}") ~> core.route ~> check {
       val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe originalContent
+    }
+  }
+  test("[positive] send/get big data") {
+
+    // Create random 10MB bytes
+    val originalContent: ByteString = ByteString({
+      val bytes = new Array[Byte](10000000)
+      Random.nextBytes(bytes)
+      bytes
+    })
+
+    var fileId: String = null
+    Post("/").withEntity(originalContent) ~> core.route ~> check {
+      // Get file ID
+      fileId = responseAs[String].trim
+      println(s"fileId: ${fileId}")
+      // File ID length should be 3
+      fileId.length shouldBe 3
+    }
+
+    Get(s"/${fileId}") ~> core.route ~> check {
+      val resContent: ByteString = responseAs[ByteString]
       // response should be original
       resContent shouldBe originalContent
     }
@@ -205,7 +231,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
   }
 
-  test("[negative] send/delete without deletable") {
+  test("[positive] send/delete without deletable") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     var fileId: String = null
     Post("/").withEntity(originalContent) ~> core.route ~> check {
@@ -213,18 +239,16 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       fileId = responseAs[String].trim
     }
 
-    // Fail to delete the file
+    // Success to delete the file
     Delete(s"/${fileId}") ~> core.route ~> check {
-      // Status should be NotFound because not deletable
-      response.status shouldBe StatusCodes.NotFound
+      // Status should be OK
+      response.status shouldBe StatusCodes.OK
     }
 
-    // Success to get because of no deletion
+    // Fail to get because of deletion
     Get(s"/${fileId}") ~> core.route ~> check {
-      // Get response file content
-      val resContent: String = responseAs[String]
-      // response should be original
-      resContent shouldBe originalContent
+      // The status should be 404
+      response.status shouldBe StatusCodes.NotFound
     }
   }
 

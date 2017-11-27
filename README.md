@@ -10,7 +10,7 @@ Transmit files by using **only common Uninx/Linux commands, `curl` or `wget`**
 
 ## Why trans?
 
-File transmitting between different devices annoying problem. There are already many file-transfer services on Web. However, most of these requires to **make us to sign up** or **install additional applications** to use them.
+File transmitting between different devices is annoying problem. There are already many file-transfer services on Web. However, most of these requires to **make us to sign up** or **install additional applications** to use them.
 
 trans server is created to solve these problems. You can send/get by **only common Unix/Linux commands** or **on your browser**.
 
@@ -26,6 +26,7 @@ trans server is created to solve these problems. You can send/get by **only comm
   - without delete key
   - with delete key
 * Change File ID length (for security)
+* Encrypt and Compress file for security
 
 ## Public Server on Heroku 
 
@@ -53,11 +54,11 @@ You can also run the following command for **daemonize** and **data persistence*
 docker run -d -p 8080:80 -v $PWD/trans-db:/trans/db --restart=always nwtgck/trans-server-akka:v1.3.0
 ```
 
-Data will be stored in `$PWD/trans-db` on your host machine. (Currently file-base H2 database is used, and files sent are stored as raw files)
+Data will be stored in `$PWD/trans-db` on your host machine. (Currently file-base H2 database is used, and files sent are stored as compressed and encrypted files)
 
 ### Way 2 - sbt "run-main ..."
 
-The following example is running on 80 port.
+The following example runs a server on 80 port.
 ```sh
 $ cd <this-project>
 $ ./make-keystore.bash
@@ -76,11 +77,11 @@ $ ./make-keystore.bash
 
 #### 2. Make a jar
 
-It takes a time
 ```sh
 $ cd <this-project>
 $ sbt assembly
 ```
+(It takes a time)
 
 #### 3. Run the jar
 
@@ -108,7 +109,7 @@ The server response, `ab2` is a File ID to get `../test.txt`
 
 ### Way 2 - wget
 
-The following example is sending `../test.txt`
+The following example sends `../test.txt`
 
 ```sh
 $ wget -q -O - https://trans-akka.herokuapp.com/ --post-file=../test.txt
@@ -129,7 +130,7 @@ The server response, `9vi` is a File ID to get `../test.txt`
 
 **This way is for a user which can't use `curl` command.**
 
-The following example is sending `sounds.zip`.
+The following example sends `sounds.zip`.
 
 #### 1. Get a file byte
 
@@ -199,12 +200,14 @@ $ curl https://trans-akka.herokuapp.com/ab2 > test.txt
 
 ### Way 3 - Using a Browser
 
-Access to `https://trans-akka.herokuapp.com/ab2`
+Open `https://trans-akka.herokuapp.com/ab2` on your browser
 
 `ab2` is a File ID.
 
 
-## Sending options
+## Sending-options
+
+Here is options you can use when sending
 
 |GET parameter | default value | decription |
 |---|---:|---|
@@ -234,7 +237,7 @@ The command means
 
 ### Usage of `deletable`
 
-All bellow are valid usage.
+All bellow are valid usages.
 
 ```bash
 'https://trans-akka.herokuapp.com/?deletable'
@@ -252,7 +255,7 @@ All bellow are valid usage.
 
 ## Delete file
 
-Here is an example
+## delete without delete key
 
 ```bash
 # wget version
@@ -264,6 +267,18 @@ wget -q -O - --method=DELETE 'https://trans-akka.herokuapp.com/vua'
 curl -X DELETE 'https://trans-akka.herokuapp.com/vua'
 ```
 (`vua` is a File ID)
+
+## delete with delete key
+
+```bash
+# wget version
+wget -q -O - --method=DELETE 'https://trans-akka.herokuapp.com/6em?key=1234'
+```
+
+```bash
+# curl version
+curl -X DELETE 'https://trans-akka.herokuapp.com/6em?key=1234'
+```
 
 
 
