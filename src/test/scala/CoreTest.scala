@@ -2,11 +2,13 @@ import java.nio.file.Files
 
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.util.ByteString
 import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
 import slick.driver.H2Driver.api._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import scala.util.Random
 
 
 class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with BeforeAndAfter {
@@ -51,6 +53,30 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
     Get(s"/${fileId}") ~> core.route ~> check {
       val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe originalContent
+    }
+  }
+  test("[positive] send/get big data") {
+
+    // Create random 10MB bytes
+    val originalContent: ByteString = ByteString({
+      val bytes = new Array[Byte](10000000)
+      Random.nextBytes(bytes)
+      bytes
+    })
+
+    var fileId: String = null
+    Post("/").withEntity(originalContent) ~> core.route ~> check {
+      // Get file ID
+      fileId = responseAs[String].trim
+      println(s"fileId: ${fileId}")
+      // File ID length should be 3
+      fileId.length shouldBe 3
+    }
+
+    Get(s"/${fileId}") ~> core.route ~> check {
+      val resContent: ByteString = responseAs[ByteString]
       // response should be original
       resContent shouldBe originalContent
     }

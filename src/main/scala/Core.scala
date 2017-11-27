@@ -7,7 +7,7 @@ import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{FileIO, Source}
+import akka.stream.scaladsl.{Compression, FileIO, Source}
 import akka.util.ByteString
 import slick.driver.H2Driver.api._
 
@@ -76,6 +76,8 @@ class Core(db: Database, fileDbPath: String){
     for {
       // Store the file
       ioResult   <- byteSource
+        // Compress data
+        .via(Compression.gzip)
         // Encrypt data
         .via(CipherFlow.flow(genEncryptCipher()))
         // Save to file
@@ -230,7 +232,10 @@ class Core(db: Database, fileDbPath: String){
 
                   val source =
                     FileIO.fromPath(file.toPath)
+                      // Decrypt data
                       .via(CipherFlow.flow(genDecryptCipher()))
+                      // Decompress data
+                      .via(Compression.gunzip())
 
                   complete(HttpEntity(ContentTypes.NoContentType, source))
 
