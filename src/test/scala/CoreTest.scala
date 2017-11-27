@@ -156,7 +156,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
   test("[positive] send with length=16") {
     val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     val fileIdLength: Int    = 16
-    Post(s"/?length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
+    Post(s"/?id-length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
       // Get file ID
       val fileId: String = responseAs[String].trim
       println(s"fileId: ${fileId}")
@@ -168,7 +168,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
   test("[positive] send with length=100000 (too big)") {
     val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     val fileIdLength: Int    = 100000
-    Post(s"/?length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
+    Post(s"/?id-length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
       // Get file ID
       val fileId: String = responseAs[String].trim
       println(s"fileId: ${fileId}")
