@@ -172,22 +172,26 @@ class Core(db: Database, fileDbPath: String){
 
       // Process GET Parameters
       processGetParamsRoute{getParams =>
-        val fileIdsSource: Source[FileId, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
-          // Get data bytes
-          val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
 
-          // Store bytes to DB
-          storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt)
-        }
+        // (hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities)
+        withoutSizeLimit {
+          val fileIdsSource: Source[FileId, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
+            // Get data bytes
+            val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
 
-        val fileIdsFut: Future[List[FileId]] = fileIdsSource.runFold(List.empty[FileId])((l, s) => l :+ s)
+            // Store bytes to DB
+            storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt)
+          }
+
+          val fileIdsFut: Future[List[FileId]] = fileIdsSource.runFold(List.empty[FileId])((l, s) => l :+ s)
 
 
-        onComplete(fileIdsFut) {
-          case Success(fileIds) =>
-            complete(fileIds.map(_.value).mkString("\n"))
-          case _ =>
-            complete("Upload failed") // TODO Change response
+          onComplete(fileIdsFut) {
+            case Success(fileIds) =>
+              complete(fileIds.map(_.value).mkString("\n"))
+            case _ =>
+              complete("Upload failed") // TODO Change response
+          }
         }
       }
     } ~
