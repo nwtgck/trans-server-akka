@@ -253,7 +253,7 @@ class Core(db: Database, fileDbPath: String){
     } ~
     // Delete file by ID
     (delete & path(Remaining)) { fileIdStr =>
-      parameter('key.?) { (deleteKeyOpt: Option[String]) =>
+      parameter("delete-key".?) { (deleteKeyOpt: Option[String]) =>
 
         // Generate file ID instance
         val fileId: FileId = FileId(fileIdStr)
@@ -323,7 +323,7 @@ class Core(db: Database, fileDbPath: String){
     // for routing DSL
     import akka.http.scaladsl.server.Directives._
 
-    parameter('duration.?, 'times.?, 'length.?, 'deletable.?, 'key.?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String]) =>
+    parameter("duration".?, "get-times".?, "id-length".?, "deletable".?, "delete-key".?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String]) =>
 
       println(s"durationStrOpt: ${durationStrOpt}")
 

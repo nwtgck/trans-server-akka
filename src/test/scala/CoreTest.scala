@@ -128,7 +128,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     var fileId     : String = null
     val times      : Int    = 5
-    Post(s"/?times=${times}").withEntity(originalContent) ~> core.route ~> check {
+    Post(s"/?get-times=${times}").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
       println(s"fileId: ${fileId}")
@@ -156,7 +156,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
   test("[positive] send with length=16") {
     val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     val fileIdLength: Int    = 16
-    Post(s"/?length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
+    Post(s"/?id-length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
       // Get file ID
       val fileId: String = responseAs[String].trim
       println(s"fileId: ${fileId}")
@@ -168,7 +168,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
   test("[positive] send with length=100000 (too big)") {
     val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     val fileIdLength: Int    = 100000
-    Post(s"/?length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
+    Post(s"/?id-length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
       // Get file ID
       val fileId: String = responseAs[String].trim
       println(s"fileId: ${fileId}")
@@ -280,13 +280,13 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     var fileId   : String = null
     val deleteKey: String = "mykey1234"
-    Post(s"/?deletable&key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
+    Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
     }
 
     // Delete the file
-    Delete(s"/${fileId}?key=${deleteKey}") ~> core.route ~> check {
+    Delete(s"/${fileId}?delete-key=${deleteKey}") ~> core.route ~> check {
       // Status should be OK
       response.status shouldBe StatusCodes.OK
     }
@@ -302,7 +302,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     var fileId   : String = null
     val deleteKey: String = "mykey1234"
-    Post(s"/?deletable&key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
+    Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
     }
@@ -327,13 +327,13 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     var fileId   : String = null
     val deleteKey: String = "mykey1234"
     val wrongKey : String = "hogehoge"
-    Post(s"/?deletable&key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
+    Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
     }
 
     // Fail to delete the file
-    Delete(s"/${fileId}?key=${wrongKey}") ~> core.route ~> check {
+    Delete(s"/${fileId}?delete-key=${wrongKey}") ~> core.route ~> check {
       // Status should be NotFound because of wrong key
       response.status shouldBe StatusCodes.NotFound
     }

@@ -41,7 +41,7 @@ You can choose any ways you want bellow.
 [![Docker Automated build](https://img.shields.io/docker/automated/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/) [![Docker Pulls](https://img.shields.io/docker/pulls/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/)
 
 ```bash
-docker run -p 8080:80 nwtgck/trans-server-akka
+docker run -p 8080:80 nwtgck/trans-server-akka:v1.4.0
 ```
 
 Then you can go http://localhost:8080/
@@ -51,7 +51,7 @@ Then you can go http://localhost:8080/
 You can also run the following command for **daemonize** and **data persistence**.
 
 ```bash
-docker run -d -p 8080:80 -v $PWD/trans-db:/trans/db --restart=always nwtgck/trans-server-akka:v1.3.0
+docker run -d -p 8080:80 -v $PWD/trans-db:/trans/db --restart=always nwtgck/trans-server-akka:v1.4.0
 ```
 
 Data will be stored in `$PWD/trans-db` on your host machine. (Currently file-base H2 database is used, and files sent are stored as compressed and encrypted files)
@@ -212,15 +212,15 @@ Here is options you can use when sending
 |GET parameter | default value | decription |
 |---|---:|---|
 | `duration`   | 1 hour        | Store duration/life             |
-| `times`      | any times     | How many times you can download |
-| `length`     | `3`           | Length of File ID               |
-| `deletable`  | `false`       | Whether a file can be deleted   |
-| `key`        | nothing       | Key for deletion                | 
+| `get-times`  | any times     | How many times you can download |
+| `id-length`  | `3`           | Length of File ID               |
+| `deletable`  | `true`        | Whether a file can be deleted   |
+| `delete-key` | nothing       | Key for deletion                | 
 
 ### An example with options
 
 ```bash
-wget -q -O - 'https://trans-akka.herokuapp.com/?duration=30s&times=1&length=16&deletable&key=mykey1234' --post-file=./hello.txt
+wget -q -O - 'https://trans-akka.herokuapp.com/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234' --post-file=./hello.txt
 ```
 
 The command means
@@ -272,12 +272,12 @@ curl -X DELETE 'https://trans-akka.herokuapp.com/vua'
 
 ```bash
 # wget version
-wget -q -O - --method=DELETE 'https://trans-akka.herokuapp.com/6em?key=1234'
+wget -q -O - --method=DELETE 'https://trans-akka.herokuapp.com/6em?delete-key=1234'
 ```
 
 ```bash
 # curl version
-curl -X DELETE 'https://trans-akka.herokuapp.com/6em?key=1234'
+curl -X DELETE 'https://trans-akka.herokuapp.com/6em?delete-key=1234'
 ```
 
 
