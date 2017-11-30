@@ -8,8 +8,8 @@ COPY . /trans
 # Move to /trans
 WORKDIR /trans
 
-# Make keystore
-RUN ./make-keystore.bash
+# Make keystore if trans.keystore doesn't exist
+RUN ! test -e trans.keystore && ./make-keystore.bash
 
 # Generate jar
 RUN sbt assembly
