@@ -8,11 +8,8 @@ COPY . /trans
 # Move to /trans
 WORKDIR /trans
 
-# Make keystore
-RUN ./make-keystore.bash
-
 # Generate jar
 RUN sbt assembly
 
-# Run the server
-ENTRYPOINT ["/usr/bin/java", "-jar", "target/scala-2.11/trans-server-akka.jar", "80", "443"]
+# Run entry (Run the server)
+ENTRYPOINT ["/trans/docker-entry.bash"]
