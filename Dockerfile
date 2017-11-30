@@ -12,4 +12,4 @@ WORKDIR /trans
 RUN sbt assembly
 
 # Run entry (Run the server)
-ENTRYPOINT ["/docker-entry.bash"]
+ENTRYPOINT ["/trans/docker-entry.bash"]
