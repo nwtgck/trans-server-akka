@@ -355,7 +355,7 @@ class Core(db: Database, fileDbPath: String){
       // Generate isDeletable
       val isDeletable: Boolean = (for {
         deletableStr <- isDeletableStrOpt
-        b <- deletableStr match {
+        b <- deletableStr.toLowerCase match {
           case "" => Some(true)
           case "true" => Some(true)
           case "false" => Some(false)
