@@ -1,4 +1,4 @@
-FROM nwtgck/sbt:ubuntu16
+FROM nwtgck/pre-installed-sbt:0.13.15
 
 LABEL maintainer="Ryo Ota <nwtgck@gmail.com>"
 
