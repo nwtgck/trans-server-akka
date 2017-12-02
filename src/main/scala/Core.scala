@@ -14,7 +14,7 @@ import slick.driver.H2Driver.api._
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Random, Success, Try}
+import scala.util.{Failure, Random, Success, Try}
 
 
 /**
@@ -103,7 +103,9 @@ class Core(db: Database, fileDbPath: String){
         } yield fileId
       }
       case _ =>
-        Future.failed(new Exception(s"Length=${idLength} of File ID might run out")) // TODO Change Exception to own Exception to handle easyly
+        Future.failed(
+          new FileIdGenFailedException(s"Length=${idLength} of File ID might run out")
+        )
     }
 
 
@@ -167,9 +169,15 @@ class Core(db: Database, fileDbPath: String){
             onComplete(storeFut){
               case Success(fileId) =>
                 complete(s"${fileId.value}\n")
-              case f =>
-                println(f)
-                complete("Upload failed") // TODO Change response
+              case Failure(e) =>
+                println(e)
+                e match {
+                  case e : FileIdGenFailedException =>
+                    complete(e.getMessage)
+                  case _ =>
+                    complete("Upload failed") // TODO Change response
+
+                }
             }
           }
         }
@@ -198,8 +206,15 @@ class Core(db: Database, fileDbPath: String){
           onComplete(fileIdsFut) {
             case Success(fileIds) =>
               complete(fileIds.map(_.value).mkString("\n"))
-            case _ =>
-              complete("Upload failed") // TODO Change response
+            case Failure(e) =>
+              println(e)
+              e match {
+                case e : FileIdGenFailedException =>
+                  complete(e.getMessage)
+                case _ =>
+                  complete("Upload failed") // TODO Change response
+
+              }
           }
         }
       }
