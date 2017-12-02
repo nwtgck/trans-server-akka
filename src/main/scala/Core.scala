@@ -5,6 +5,7 @@ import javax.crypto.Cipher
 import Tables.OriginalTypeImplicits._
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
+import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Compression, FileIO, Source}
@@ -58,48 +59,54 @@ class Core(db: Database, fileDbPath: String){
     println(s"idLength: ${idLength}")
 
     // Generate File ID and storeFilePath
-    val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath(idLength)
+    generateNoDuplicatedFiledIdAndStorePathOpt(idLength) match {
+      case Some((fileId, storeFilePath)) => {
+        // Adjust duration (big duration is not good)
+        val adjustedDuration: FiniteDuration = duration.min(Setting.MaxStoreDuration)
+        println(s"adjustedDuration: ${adjustedDuration}")
 
-    // Adjust duration (big duration is not good)
-    val adjustedDuration: FiniteDuration = duration.min(Setting.MaxStoreDuration)
-    println(s"adjustedDuration: ${adjustedDuration}")
+        println(s"isDeletable: ${isDeletable}")
 
-    println(s"isDeletable: ${isDeletable}")
+        // Generate hashed delete key
+        val hashedDeleteKeyOpt: Option[String] =
+          if(isDeletable)
+            deleteKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
+          else
+            None
 
-    // Generate hashed delete key
-    val hashedDeleteKeyOpt: Option[String] =
-      if(isDeletable)
-        deleteKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
-      else
-        None
-
-    for {
-      // Store the file
-      ioResult   <- byteSource
-        // Compress data
-        .via(Compression.gzip)
-        // Encrypt data
-        .via(CipherFlow.flow(genEncryptCipher()))
-        // Save to file
-        .runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
-      // Create file store object
-      fileStore = FileStore(
-        fileId             = fileId,
-        storePath          = storeFilePath,
-        createdAt          = TimestampUtil.now(),
-        deadline           = TimestampUtil.now + adjustedDuration,
-        nGetLimitOpt       = nGetLimitOpt,
-        isDeletable        = isDeletable,
-        hashedDeleteKeyOpt = hashedDeleteKeyOpt
-      )
-      // Store to the database
-      // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
-      _          <- db.run(Tables.allFileStores += fileStore)
-      fileStores <- db.run(Tables.allFileStores.result)
-      _ <- Future.successful {
-        println(s"IOResult: ${ioResult}")
+        for {
+          // Store the file
+          ioResult   <- byteSource
+            // Compress data
+            .via(Compression.gzip)
+            // Encrypt data
+            .via(CipherFlow.flow(genEncryptCipher()))
+            // Save to file
+            .runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
+          // Create file store object
+          fileStore = FileStore(
+            fileId             = fileId,
+            storePath          = storeFilePath,
+            createdAt          = TimestampUtil.now(),
+            deadline           = TimestampUtil.now + adjustedDuration,
+            nGetLimitOpt       = nGetLimitOpt,
+            isDeletable        = isDeletable,
+            hashedDeleteKeyOpt = hashedDeleteKeyOpt
+          )
+          // Store to the database
+          // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
+          _          <- db.run(Tables.allFileStores += fileStore)
+          fileStores <- db.run(Tables.allFileStores.result)
+          _ <- Future.successful {
+            println(s"IOResult: ${ioResult}")
+          }
+        } yield fileId
       }
-    } yield fileId
+      case _ =>
+        Future.failed(new Exception(s"Length=${idLength} of File ID might run out")) // TODO Change Exception to own Exception to handle easyly
+    }
+
+
   }
 
 
@@ -441,18 +448,23 @@ class Core(db: Database, fileDbPath: String){
 
   /**
     * Generate non-duplicated File ID and store path
-    * @return
+    * @return Return FileId
     */
-  def generateNoDuplicatedFiledIdAndStorePath(idLength: Int): (FileId, String) = {
-    var fileIdStr: String = null
+  def generateNoDuplicatedFiledIdAndStorePathOpt(idLength: Int): Option[(FileId, String)] = {
+    var fileIdStr    : String = null
     var storeFilePath: String = null
+    var tryNum       : Int    = 0
 
     // Generate File ID and storeFilePath
     do {
+      tryNum    += 1
       fileIdStr = generateRandomFileId(idLength)
       storeFilePath = List(fileDbPath, fileIdStr).mkString(File.separator)
+      if(tryNum > Setting.FileIdGenTryLimit){
+        return None
+      }
     } while (new File(storeFilePath).exists())
-    return (FileId(fileIdStr), storeFilePath)
+    return Some(FileId(fileIdStr), storeFilePath)
   }
 
   /**
