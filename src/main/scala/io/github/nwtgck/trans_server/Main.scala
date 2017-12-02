@@ -1,3 +1,5 @@
+package io.github.nwtgck.trans_server
+
 import java.io.{File, FileInputStream, InputStream}
 import java.security.{KeyStore, SecureRandom}
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}

@@ -1,3 +1,5 @@
+package io.github.nwtgck.trans_server
+
 import java.io.File
 import java.nio.file.StandardOpenOption
 import javax.crypto.Cipher
@@ -154,6 +156,10 @@ class Core(db: Database, fileDbPath: String){
         HttpEntity.fromPath(ContentTypes.`text/html(UTF-8)`, indexFile.toPath)
       }
     } ~
+    (get & path(Setting.GetRouteName.Version)){
+      // Response server's version
+      complete(s"${BuildInfo.version}\n")
+    } ~
     // "Post /" for client-sending a file
     (post & pathSingleSlash) {
 
@@ -185,7 +191,7 @@ class Core(db: Database, fileDbPath: String){
 
     } ~
     // "Post /" for client-sending a file
-    (post & path(Setting.GetRouteName.Multipart) & entity(as[Multipart.FormData])) { formData =>
+    (post & path("multipart") & entity(as[Multipart.FormData])) { formData =>
 
       // Process GET Parameters
       processGetParamsRoute{getParams =>

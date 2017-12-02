@@ -1,3 +1,5 @@
+package io.github.nwtgck.trans_server
+
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 /**
@@ -22,13 +24,11 @@ object Setting {
 
   // Reserved route name of GET request
   object GetRouteName{
-    val Multipart: String = "multipart"
     val Help     : String = "help"
     val Version  : String = "version"
 
     // Reserved route names
     val allSet   : Set[String] = Set(
-      Multipart,
       Help,
       Version
     )

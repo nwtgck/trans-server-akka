@@ -1,3 +1,5 @@
+package io.github.nwtgck.trans_server
+
 import java.nio.file.Files
 
 import akka.http.scaladsl.model.StatusCodes

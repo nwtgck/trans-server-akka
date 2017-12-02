@@ -1,3 +1,5 @@
+package io.github.nwtgck.trans_server
+
 import javax.crypto.Cipher
 
 import akka.NotUsed
