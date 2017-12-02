@@ -147,18 +147,121 @@ class Core(db: Database, fileDbPath: String){
     // for Futures
     import concurrent.ExecutionContext.Implicits.global
 
+    get {
+      // "Get /" for confirming whether the server is running
+      pathSingleSlash {
+        complete {
+          val indexFile = new File("trans-client-web/index.html")
+          HttpEntity.fromPath(ContentTypes.`text/html(UTF-8)`, indexFile.toPath)
+        }
+      } ~
+      // Version routing
+      path(Setting.GetRouteName.Version) {
+        // Response server's version
+        complete(s"${BuildInfo.version}\n")
+      } ~
+      path(Setting.GetRouteName.Help) {
+        complete( // TODO Should(?) move text content somewhere
+          s"""
+             |Help for trans (${BuildInfo.version})
+             |(Repository: https://github.com/nwtgck/trans-server-akka)
+             |
+             |(NOTE: hogehoge.io is a dummy domain)
+             |
+             |====== wget =====
+             |# Send
+             |wget -q -O - https://hogehoge.io --post-file=test.txt
+             |
+             |# Get
+             |wget https://hogehoge.io/a3h
+             |('a3h' is File ID of test.txt)
+             |
+             |# Delete
+             |wget --method=DELETE https://hogehoge.io/a3h
+             |
+             |===== curl ======
+             |# Send
+             |curl https://hogehoge.io --data-binary @test.txt
+             |
+             |# Get
+             |curl https://hogehoge.io/a3h > mytest.txt
+             |
+             |# Delete
+             |curl -X DELETE https://hogehoge.io/a3h
+             |
+             |===== Option Example =====
+             |
+             |# Send (duration: 30 sec, Download limit: once, ID Length: 16, Delete key: 'mykey1234')
+             |wget -q -O - 'https://hogehoge.io/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234' --post-file=./test.txt
+             |
+             |# Delete with delete key
+             |wget --method DELETE 'https://hogehoge.io/a3h?delete-key=mykey1234'
+             |
+             |===== Installation of trans-cli =====
+             |pip3 install --upgrade git+https://github.com/nwtgck/trans-cli-python@master
+             |
+             |
+             |
+             |===== Tip: directory sending (zip) =====
+             |zip -q -r - ./mydir | curl -X POST https://hogehoge.io --data-binary @-
+             |
+             |===== Tip: directory sending (tar.gz) =====
+             |tar zfcp - test/ | curl -X POST https://hogehoge.io --data-binary @-
+             |""".stripMargin
+        )
+      } ~
+      path(Remaining) { fileIdStr =>
+        // Generate file ID instance
+        val fileId: FileId = FileId(fileIdStr)
 
-    // "Get /" for confirming whether the server is running
-    (get & pathSingleSlash) {
-      //      complete(<h1>trans server is runnning</h1>)
-      complete {
-        val indexFile = new File("trans-client-web/index.html")
-        HttpEntity.fromPath(ContentTypes.`text/html(UTF-8)`, indexFile.toPath)
+        // Check existence of valid(=not expired) file store
+        val existsFileStoreFut: Future[Option[FileStore]] =  db.run(
+          Tables.allFileStores
+            .filter(fileStore =>  fileStore.fileId === fileId && isAliveFileStore(fileStore))
+            .result
+            .headOption
+        )
+        onComplete(existsFileStoreFut){
+
+          // If file is alive (not expired and exist)
+          case Success(Some(fileStore)) =>
+            // Generate file instance
+            val file = new File(fileStore.storePath)
+            // File exists
+            if (file.exists()) {
+              withRangeSupport { // Range support for `pget`
+                // Create decrement-nGetLimit-DBIO (TODO decrementing nGetLimit may need mutual execution)
+                val decrementDbio = for {
+                  // Find file store
+                  fileStore <- Tables.allFileStores.filter(_.fileId === fileId).result.head
+                  // Decrement nGetLimit
+                  _         <- Tables.allFileStores.filter(_.fileId === fileId).map(_.nGetLimitOpt).update(fileStore.nGetLimitOpt.map(_ - 1))
+                } yield ()
+
+                onComplete(db.run(decrementDbio)){
+                  case Success(_) =>
+
+                    val source =
+                      FileIO.fromPath(file.toPath)
+                        // Decrypt data
+                        .via(CipherFlow.flow(genDecryptCipher()))
+                        // Decompress data
+                        .via(Compression.gunzip())
+
+                    complete(HttpEntity(ContentTypes.NoContentType, source))
+
+                  case _ =>
+                    complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
+                }
+              }
+            } else {
+              complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
+            }
+          case _ =>
+            complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found or expired\n")
+        }
       }
-    } ~
-    (get & path(Setting.GetRouteName.Version)){
-      // Response server's version
-      complete(s"${BuildInfo.version}\n")
+
     } ~
     // "Post /" for client-sending a file
     (post & pathSingleSlash) {
@@ -224,60 +327,6 @@ class Core(db: Database, fileDbPath: String){
           }
         }
       }
-    } ~
-    // "Get /xyz" for client-getting the specified file
-    (get & path(Remaining)) { fileIdStr =>
-
-      // Generate file ID instance
-      val fileId: FileId = FileId(fileIdStr)
-
-      // Check existence of valid(=not expired) file store
-      val existsFileStoreFut: Future[Option[FileStore]] =  db.run(
-        Tables.allFileStores
-          .filter(fileStore =>  fileStore.fileId === fileId && isAliveFileStore(fileStore))
-          .result
-          .headOption
-      )
-      onComplete(existsFileStoreFut){
-
-        // If file is alive (not expired and exist)
-        case Success(Some(fileStore)) =>
-          // Generate file instance
-          val file = new File(fileStore.storePath)
-          // File exists
-          if (file.exists()) {
-            withRangeSupport { // Range support for `pget`
-              // Create decrement-nGetLimit-DBIO (TODO decrementing nGetLimit may need mutual execution)
-              val decrementDbio = for {
-                // Find file store
-                fileStore <- Tables.allFileStores.filter(_.fileId === fileId).result.head
-                // Decrement nGetLimit
-                _         <- Tables.allFileStores.filter(_.fileId === fileId).map(_.nGetLimitOpt).update(fileStore.nGetLimitOpt.map(_ - 1))
-              } yield ()
-
-              onComplete(db.run(decrementDbio)){
-                case Success(_) =>
-
-                  val source =
-                    FileIO.fromPath(file.toPath)
-                      // Decrypt data
-                      .via(CipherFlow.flow(genDecryptCipher()))
-                      // Decompress data
-                      .via(Compression.gunzip())
-
-                  complete(HttpEntity(ContentTypes.NoContentType, source))
-
-                case _ =>
-                  complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
-              }
-            }
-          } else {
-            complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
-          }
-        case _ =>
-          complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found or expired\n")
-      }
-
     } ~
     // Delete file by ID
     (delete & path(Remaining)) { fileIdStr =>
