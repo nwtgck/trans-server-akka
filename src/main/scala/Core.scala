@@ -185,7 +185,7 @@ class Core(db: Database, fileDbPath: String){
 
     } ~
     // "Post /" for client-sending a file
-    (post & path("multipart") & entity(as[Multipart.FormData])) { formData =>
+    (post & path(Setting.GetRouteName.Multipart) & entity(as[Multipart.FormData])) { formData =>
 
       // Process GET Parameters
       processGetParamsRoute{getParams =>
@@ -478,7 +478,10 @@ class Core(db: Database, fileDbPath: String){
       if(tryNum > Setting.FileIdGenTryLimit){
         return None
       }
-    } while (new File(storeFilePath).exists())
+    } while (
+      Setting.GetRouteName.allSet.contains(fileIdStr) || // File ID is reserved route name
+      new File(storeFilePath).exists()                   // Path already exists
+    )
     return Some(FileId(fileIdStr), storeFilePath)
   }
 

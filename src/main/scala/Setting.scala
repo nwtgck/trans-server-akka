@@ -19,4 +19,18 @@ object Setting {
   val KeySalt              : String         = "ymiKicjOq5M3yIMmVBEPFcLnkNxJ4n2iY9ms3fYRsBDS3wZvS1lev9ToLnZhlj3O"
   val FileEncryptionKey    : String         = "vKOhINCMuO47xxel" // NOTE: Its length should be 16
   val FileIdGenTryLimit    : Int            = 500 // NOTE: Simple study shows 500 is enough (https://github.com/nwtgck/random-str-collision-graph-scala)
+
+  // Reserved route name of GET request
+  object GetRouteName{
+    val Multipart: String = "multipart"
+    val Help     : String = "help"
+    val Version  : String = "version"
+
+    // Reserved route names
+    val allSet   : Set[String] = Set(
+      Multipart,
+      Help,
+      Version
+    )
+  }
 }
