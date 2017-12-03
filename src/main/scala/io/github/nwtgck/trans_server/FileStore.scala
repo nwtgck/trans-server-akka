@@ -1,3 +1,5 @@
+package io.github.nwtgck.trans_server
+
 /**
   * File store
   * @param fileId             ID

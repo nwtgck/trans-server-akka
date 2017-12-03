@@ -1,3 +1,5 @@
+package io.github.nwtgck.trans_server
+
 import slick.ast.BaseTypedType
 import slick.jdbc.JdbcType
 import slick.jdbc.meta.MTable
