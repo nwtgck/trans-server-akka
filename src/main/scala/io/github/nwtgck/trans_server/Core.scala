@@ -4,16 +4,13 @@ import java.io.File
 import java.nio.file.StandardOpenOption
 import javax.crypto.Cipher
 
-import Tables.OriginalTypeImplicits._
-import akka.NotUsed
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
-import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Route
-import akka.stream.impl.fusing.Fold
-import akka.stream.{ActorMaterializer, ClosedShape, FlowShape, IOResult}
-import akka.stream.scaladsl.{Broadcast, Compression, FileIO, Flow, GraphDSL, Keep, RunnableGraph, Sink, Source, Zip}
+import akka.stream.scaladsl.{Broadcast, Compression, FileIO, GraphDSL, RunnableGraph, Sink, Source}
+import akka.stream.{ActorMaterializer, ClosedShape, IOResult}
 import akka.util.ByteString
+import io.github.nwtgck.trans_server.Tables.OriginalTypeImplicits._
 import slick.driver.H2Driver.api._
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
