@@ -507,7 +507,7 @@ class Core(db: Database, fileDbPath: String){
     * Generate non-duplicated File ID and store path
     * @return Return FileId
     */
-  def generateNoDuplicatedFiledIdAndStorePathOpt(idLength: Int): Option[(FileId, String)] = {
+  def generateNoDuplicatedFiledIdAndStorePathOpt(idLength: Int): Option[(FileId, String)] = synchronized {
     var fileIdStr    : String = null
     var storeFilePath: String = null
     var tryNum       : Int    = 0
