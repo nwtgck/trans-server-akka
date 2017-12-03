@@ -60,7 +60,7 @@ You can choose any ways you want bellow.
 
 ### Way 1 - Run on Docker
 
-[![Docker Automated build](https://img.shields.io/docker/automated/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/) [![Docker Pulls](https://img.shields.io/docker/pulls/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/)
+[![Docker Automated build](https://img.shields.io/docker/automated/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/)
 
 ```bash
 docker run -p 8080:80 nwtgck/trans-server-akka:v1.5.0
