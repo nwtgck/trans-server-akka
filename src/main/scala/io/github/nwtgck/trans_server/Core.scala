@@ -5,12 +5,14 @@ import java.nio.file.StandardOpenOption
 import javax.crypto.Cipher
 
 import Tables.OriginalTypeImplicits._
+import akka.NotUsed
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Compression, FileIO, Source}
+import akka.stream.impl.fusing.Fold
+import akka.stream.{ActorMaterializer, ClosedShape, FlowShape, IOResult}
+import akka.stream.scaladsl.{Broadcast, Compression, FileIO, Flow, GraphDSL, Keep, RunnableGraph, Sink, Source, Zip}
 import akka.util.ByteString
 import slick.driver.H2Driver.api._
 
@@ -76,19 +78,40 @@ class Core(db: Database, fileDbPath: String){
           else
             None
 
+
+        // Create a file-store graph
+        val storeGraph: RunnableGraph[Future[(IOResult, Long)]] = {
+
+          // Store file
+          val fileStoreSink: Sink[ByteString, Future[IOResult]] =
+            FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE))
+
+          // Calc length of ByteString
+          val lengthSink   : Sink[ByteString, Future[Long]] =
+            Sink.fold(0l)(_ + _.length)
+
+          RunnableGraph.fromGraph(GraphDSL.create(fileStoreSink, lengthSink)(_.zip(_)){implicit builder => (fileStoreSink, lengthSink) =>
+            import GraphDSL.Implicits._
+            val bcast = builder.add(Broadcast[ByteString](2))
+
+            // * compress ~> encrypt ~> store
+            // * calc length
+            byteSource ~> bcast ~> Compression.gzip ~> CipherFlow.flow(genEncryptCipher()) ~> fileStoreSink
+                          bcast ~> lengthSink
+            ClosedShape
+          })
+        }
+
+
         for {
-          // Store the file
-          ioResult   <- byteSource
-            // Compress data
-            .via(Compression.gzip)
-            // Encrypt data
-            .via(CipherFlow.flow(genEncryptCipher()))
-            // Save to file
-            .runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
+          // Store a file and get content length
+          (ioResult, rawLength) <- storeGraph.run()
+
           // Create file store object
           fileStore = FileStore(
             fileId             = fileId,
             storePath          = storeFilePath,
+            rawLength          = rawLength,
             createdAt          = TimestampUtil.now(),
             deadline           = TimestampUtil.now + adjustedDuration,
             nGetLimitOpt       = nGetLimitOpt,
@@ -101,6 +124,7 @@ class Core(db: Database, fileDbPath: String){
           fileStores <- db.run(Tables.allFileStores.result)
           _ <- Future.successful {
             println(s"IOResult: ${ioResult}")
+            println(s"rawLength: ${rawLength}")
           }
         } yield fileId
       }
@@ -235,7 +259,7 @@ class Core(db: Database, fileDbPath: String){
                         // Decompress data
                         .via(Compression.gunzip())
 
-                    complete(HttpEntity(ContentTypes.NoContentType, source))
+                    complete(HttpEntity(ContentTypes.NoContentType, fileStore.rawLength, source))
 
                   case _ =>
                     complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")

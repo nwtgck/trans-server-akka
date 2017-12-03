@@ -43,13 +43,14 @@ object Tables {
   class FileStores(tag: Tag) extends Table[FileStore](tag, "file_stores"){
     val fileId             = column[FileId]("file_id", O.PrimaryKey)
     val storePath          = column[String]("store_path")
+    val rawLength          = column[Long]("raw_length")
     val createdAt          = column[java.sql.Timestamp]("created_at")
     val deadline           = column[java.sql.Timestamp]("deadline")
     val nGetLimitOpt       = column[Option[Int]]("n_get_limit_opt")
     val isDeletable        = column[Boolean]("is_deletable")
     val hashedDeleteKeyOpt = column[Option[String]]("hashed_delete_key_opt")
 
-    override def * = (fileId, storePath, createdAt, deadline, nGetLimitOpt, isDeletable, hashedDeleteKeyOpt) <> (FileStore.tupled, FileStore.unapply)
+    override def * = (fileId, storePath, rawLength, createdAt, deadline, nGetLimitOpt, isDeletable, hashedDeleteKeyOpt) <> (FileStore.tupled, FileStore.unapply)
   }
 
 
