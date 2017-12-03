@@ -1,3 +1,5 @@
+package io.github.nwtgck.trans_server
+
 import scala.concurrent.duration.FiniteDuration
 import java.sql.Timestamp
 

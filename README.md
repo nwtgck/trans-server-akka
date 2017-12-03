@@ -8,11 +8,37 @@ Transmit files by using **only common Uninx/Linux commands, `curl` or `wget`**
 | [`develop`](https://github.com/nwtgck/trans-server-akka/tree/develop) | [![Build Status](https://travis-ci.org/nwtgck/trans-server-akka.svg?branch=develop)](https://travis-ci.org/nwtgck/trans-server-akka) |
 
 
-## Why trans?
 
-File transmitting between different devices is annoying problem. There are already many file-transfer services on Web. However, most of these requires to **make us to sign up** or **install additional applications** to use them.
+## Public Server on Heroku 
 
-trans server is created to solve these problems. You can send/get by **only common Unix/Linux commands** or **on your browser**.
+https://trans-akka.herokuapp.com/
+
+
+## Quick Start
+
+You can send, download and delete a file by the following commands.
+
+```
+# Send a file
+wget -q -O - https://trans-akka.herokuapp.com/ --post-file=./test.txt
+```
+
+```
+# Downlaod the file
+wget https://trans-akka.herokuapp.com/a7h
+# ('a7h' is a File ID created after sending)
+```
+
+```
+# Delete a file
+wget -q -O - --method DELETE https://trans-akka.herokuapp.com/a7h
+```
+
+
+### Option explanations
+
+* `-q`: No prgress bar
+* `-O -`: Response to stdout
 
 
 ## Main features
@@ -27,10 +53,6 @@ trans server is created to solve these problems. You can send/get by **only comm
   - with delete key
 * Change File ID length (for security)
 * Encrypt and Compress file for security
-
-## Public Server on Heroku 
-
-https://trans-akka.herokuapp.com/
 
 ## How to run the server
 

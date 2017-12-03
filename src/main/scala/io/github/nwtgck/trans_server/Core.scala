@@ -1,19 +1,21 @@
+package io.github.nwtgck.trans_server
+
 import java.io.File
 import java.nio.file.StandardOpenOption
 import javax.crypto.Cipher
 
-import Tables.OriginalTypeImplicits._
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Compression, FileIO, Source}
+import akka.stream.scaladsl.{Broadcast, Compression, FileIO, GraphDSL, RunnableGraph, Sink, Source}
+import akka.stream.{ActorMaterializer, ClosedShape, IOResult}
 import akka.util.ByteString
+import io.github.nwtgck.trans_server.Tables.OriginalTypeImplicits._
 import slick.driver.H2Driver.api._
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Random, Success, Try}
+import scala.util.{Failure, Random, Success, Try}
 
 
 /**
@@ -58,48 +60,78 @@ class Core(db: Database, fileDbPath: String){
     println(s"idLength: ${idLength}")
 
     // Generate File ID and storeFilePath
-    val (fileId, storeFilePath) = generateNoDuplicatedFiledIdAndStorePath(idLength)
+    generateNoDuplicatedFiledIdAndStorePathOpt(idLength) match {
+      case Some((fileId, storeFilePath)) => {
+        // Adjust duration (big duration is not good)
+        val adjustedDuration: FiniteDuration = duration.min(Setting.MaxStoreDuration)
+        println(s"adjustedDuration: ${adjustedDuration}")
 
-    // Adjust duration (big duration is not good)
-    val adjustedDuration: FiniteDuration = duration.min(Setting.MaxStoreDuration)
-    println(s"adjustedDuration: ${adjustedDuration}")
+        println(s"isDeletable: ${isDeletable}")
 
-    println(s"isDeletable: ${isDeletable}")
+        // Generate hashed delete key
+        val hashedDeleteKeyOpt: Option[String] =
+          if(isDeletable)
+            deleteKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
+          else
+            None
 
-    // Generate hashed delete key
-    val hashedDeleteKeyOpt: Option[String] =
-      if(isDeletable)
-        deleteKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
-      else
-        None
 
-    for {
-      // Store the file
-      ioResult   <- byteSource
-        // Compress data
-        .via(Compression.gzip)
-        // Encrypt data
-        .via(CipherFlow.flow(genEncryptCipher()))
-        // Save to file
-        .runWith(FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE)))
-      // Create file store object
-      fileStore = FileStore(
-        fileId             = fileId,
-        storePath          = storeFilePath,
-        createdAt          = TimestampUtil.now(),
-        deadline           = TimestampUtil.now + adjustedDuration,
-        nGetLimitOpt       = nGetLimitOpt,
-        isDeletable        = isDeletable,
-        hashedDeleteKeyOpt = hashedDeleteKeyOpt
-      )
-      // Store to the database
-      // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
-      _          <- db.run(Tables.allFileStores += fileStore)
-      fileStores <- db.run(Tables.allFileStores.result)
-      _ <- Future.successful {
-        println(s"IOResult: ${ioResult}")
+        // Create a file-store graph
+        val storeGraph: RunnableGraph[Future[(IOResult, Long)]] = {
+
+          // Store file
+          val fileStoreSink: Sink[ByteString, Future[IOResult]] =
+            FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE))
+
+          // Calc length of ByteString
+          val lengthSink   : Sink[ByteString, Future[Long]] =
+            Sink.fold(0l)(_ + _.length)
+
+          RunnableGraph.fromGraph(GraphDSL.create(fileStoreSink, lengthSink)(_.zip(_)){implicit builder => (fileStoreSink, lengthSink) =>
+            import GraphDSL.Implicits._
+            val bcast = builder.add(Broadcast[ByteString](2))
+
+            // * compress ~> encrypt ~> store
+            // * calc length
+            byteSource ~> bcast ~> Compression.gzip ~> CipherFlow.flow(genEncryptCipher()) ~> fileStoreSink
+                          bcast ~> lengthSink
+            ClosedShape
+          })
+        }
+
+
+        for {
+          // Store a file and get content length
+          (ioResult, rawLength) <- storeGraph.run()
+
+          // Create file store object
+          fileStore = FileStore(
+            fileId             = fileId,
+            storePath          = storeFilePath,
+            rawLength          = rawLength,
+            createdAt          = TimestampUtil.now(),
+            deadline           = TimestampUtil.now + adjustedDuration,
+            nGetLimitOpt       = nGetLimitOpt,
+            isDeletable        = isDeletable,
+            hashedDeleteKeyOpt = hashedDeleteKeyOpt
+          )
+          // Store to the database
+          // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
+          _          <- db.run(Tables.allFileStores += fileStore)
+          fileStores <- db.run(Tables.allFileStores.result)
+          _ <- Future.successful {
+            println(s"IOResult: ${ioResult}")
+            println(s"rawLength: ${rawLength}")
+          }
+        } yield fileId
       }
-    } yield fileId
+      case _ =>
+        Future.failed(
+          new FileIdGenFailedException(s"Length=${idLength} of File ID might run out")
+        )
+    }
+
+
   }
 
 
@@ -136,14 +168,108 @@ class Core(db: Database, fileDbPath: String){
     // for Futures
     import concurrent.ExecutionContext.Implicits.global
 
+    get {
+      // "Get /" for confirming whether the server is running
+      pathSingleSlash {
+        complete {
+          val indexFile = new File("trans-client-web/index.html")
+          HttpEntity.fromPath(ContentTypes.`text/html(UTF-8)`, indexFile.toPath)
+        }
+      } ~
+      // Version routing
+      path(Setting.GetRouteName.Version) {
+        // Response server's version
+        complete(s"${BuildInfo.version}\n")
+      } ~
+      path(Setting.GetRouteName.Help) {
+        complete( // TODO Should(?) move text content somewhere
+          s"""|Help for trans (${BuildInfo.version})
+              |(Repository: https://github.com/nwtgck/trans-server-akka)
+              |(NOTE: hogehoge.io is a dummy domain)
+              |
+              |====== wget =====
+              |# Send  : wget -q -O - https://hogehoge.io --post-file=test.txt
+              |# Get   : wget https://hogehoge.io/a3h
+              |# Delete: wget --method=DELETE https://hogehoge.io/a3h
+              |('a3h' is File ID of test.txt)
+              |
+              |===== curl ======
+              |# Send  : curl https://hogehoge.io --data-binary @test.txt
+              |# Get   : curl https://hogehoge.io/a3h > mytest.txt
+              |# Delete: curl -X DELETE https://hogehoge.io/a3h
+              |('a3h' is File ID of test.txt)
+              |
+              |===== Option Example =====
+              |# Send (duration: 30 sec, Download limit: once, ID length: 16, Delete key: 'mykey1234')
+              |wget -q -O - 'https://hogehoge.io/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234' --post-file=./test.txt
+              |
+              |# Delete with delete key
+              |wget --method DELETE 'https://hogehoge.io/a3h?delete-key=mykey1234'
+              |
+              |
+              |------ Installation of trans-cli ------
+              |pip3 install --upgrade git+https://github.com/nwtgck/trans-cli-python@master
+              |
+              |------ Tip: directory sending (zip) ------
+              |zip -q -r - ./mydir | curl -X POST https://hogehoge.io --data-binary @-
+              |
+              |------ Tip: directory sending (tar.gz) ------
+              |tar zfcp - ./mydir/ | curl -X POST https://hogehoge.io --data-binary @-
+              |""".stripMargin
+        )
+      } ~
+      path(Remaining) { fileIdStr =>
+        // Generate file ID instance
+        val fileId: FileId = FileId(fileIdStr)
 
-    // "Get /" for confirming whether the server is running
-    (get & pathSingleSlash) {
-      //      complete(<h1>trans server is runnning</h1>)
-      complete {
-        val indexFile = new File("trans-client-web/index.html")
-        HttpEntity.fromPath(ContentTypes.`text/html(UTF-8)`, indexFile.toPath)
+        // Check existence of valid(=not expired) file store
+        val existsFileStoreFut: Future[Option[FileStore]] =  db.run(
+          Tables.allFileStores
+            .filter(fileStore =>  fileStore.fileId === fileId && isAliveFileStore(fileStore))
+            .result
+            .headOption
+        )
+        onComplete(existsFileStoreFut){
+
+          // If file is alive (not expired and exist)
+          case Success(Some(fileStore)) =>
+            // Generate file instance
+            val file = new File(fileStore.storePath)
+            // File exists
+            if (file.exists()) {
+              withRangeSupport { // Range support for `pget`
+                // Create decrement-nGetLimit-DBIO (TODO decrementing nGetLimit may need mutual execution)
+                val decrementDbio = for {
+                  // Find file store
+                  fileStore <- Tables.allFileStores.filter(_.fileId === fileId).result.head
+                  // Decrement nGetLimit
+                  _         <- Tables.allFileStores.filter(_.fileId === fileId).map(_.nGetLimitOpt).update(fileStore.nGetLimitOpt.map(_ - 1))
+                } yield ()
+
+                onComplete(db.run(decrementDbio)){
+                  case Success(_) =>
+
+                    val source =
+                      FileIO.fromPath(file.toPath)
+                        // Decrypt data
+                        .via(CipherFlow.flow(genDecryptCipher()))
+                        // Decompress data
+                        .via(Compression.gunzip())
+
+                    complete(HttpEntity(ContentTypes.NoContentType, fileStore.rawLength, source))
+
+                  case _ =>
+                    complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
+                }
+              }
+            } else {
+              complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
+            }
+          case _ =>
+            complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found or expired\n")
+        }
       }
+
     } ~
     // "Post /" for client-sending a file
     (post & pathSingleSlash) {
@@ -160,9 +286,15 @@ class Core(db: Database, fileDbPath: String){
             onComplete(storeFut){
               case Success(fileId) =>
                 complete(s"${fileId.value}\n")
-              case f =>
-                println(f)
-                complete("Upload failed") // TODO Change response
+              case Failure(e) =>
+                println(e)
+                e match {
+                  case e : FileIdGenFailedException =>
+                    complete(e.getMessage)
+                  case _ =>
+                    complete("Upload failed") // TODO Change response
+
+                }
             }
           }
         }
@@ -191,65 +323,18 @@ class Core(db: Database, fileDbPath: String){
           onComplete(fileIdsFut) {
             case Success(fileIds) =>
               complete(fileIds.map(_.value).mkString("\n"))
-            case _ =>
-              complete("Upload failed") // TODO Change response
+            case Failure(e) =>
+              println(e)
+              e match {
+                case e : FileIdGenFailedException =>
+                  complete(e.getMessage)
+                case _ =>
+                  complete("Upload failed") // TODO Change response
+
+              }
           }
         }
       }
-    } ~
-    // "Get /xyz" for client-getting the specified file
-    (get & path(Remaining)) { fileIdStr =>
-
-      // Generate file ID instance
-      val fileId: FileId = FileId(fileIdStr)
-
-      // Check existence of valid(=not expired) file store
-      val existsFileStoreFut: Future[Option[FileStore]] =  db.run(
-        Tables.allFileStores
-          .filter(fileStore =>  fileStore.fileId === fileId && isAliveFileStore(fileStore))
-          .result
-          .headOption
-      )
-      onComplete(existsFileStoreFut){
-
-        // If file is alive (not expired and exist)
-        case Success(Some(fileStore)) =>
-          // Generate file instance
-          val file = new File(fileStore.storePath)
-          // File exists
-          if (file.exists()) {
-            withRangeSupport { // Range support for `pget`
-              // Create decrement-nGetLimit-DBIO (TODO decrementing nGetLimit may need mutual execution)
-              val decrementDbio = for {
-                // Find file store
-                fileStore <- Tables.allFileStores.filter(_.fileId === fileId).result.head
-                // Decrement nGetLimit
-                _         <- Tables.allFileStores.filter(_.fileId === fileId).map(_.nGetLimitOpt).update(fileStore.nGetLimitOpt.map(_ - 1))
-              } yield ()
-
-              onComplete(db.run(decrementDbio)){
-                case Success(_) =>
-
-                  val source =
-                    FileIO.fromPath(file.toPath)
-                      // Decrypt data
-                      .via(CipherFlow.flow(genDecryptCipher()))
-                      // Decompress data
-                      .via(Compression.gunzip())
-
-                  complete(HttpEntity(ContentTypes.NoContentType, source))
-
-                case _ =>
-                  complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
-              }
-            }
-          } else {
-            complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
-          }
-        case _ =>
-          complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found or expired\n")
-      }
-
     } ~
     // Delete file by ID
     (delete & path(Remaining)) { fileIdStr =>
@@ -441,18 +526,26 @@ class Core(db: Database, fileDbPath: String){
 
   /**
     * Generate non-duplicated File ID and store path
-    * @return
+    * @return Return FileId
     */
-  def generateNoDuplicatedFiledIdAndStorePath(idLength: Int): (FileId, String) = {
-    var fileIdStr: String = null
+  def generateNoDuplicatedFiledIdAndStorePathOpt(idLength: Int): Option[(FileId, String)] = synchronized {
+    var fileIdStr    : String = null
     var storeFilePath: String = null
+    var tryNum       : Int    = 0
 
     // Generate File ID and storeFilePath
     do {
+      tryNum    += 1
       fileIdStr = generateRandomFileId(idLength)
       storeFilePath = List(fileDbPath, fileIdStr).mkString(File.separator)
-    } while (new File(storeFilePath).exists())
-    return (FileId(fileIdStr), storeFilePath)
+      if(tryNum > Setting.FileIdGenTryLimit){
+        return None
+      }
+    } while (
+      Setting.GetRouteName.allSet.contains(fileIdStr) || // File ID is reserved route name
+      new File(storeFilePath).exists()                   // Path already exists
+    )
+    return Some(FileId(fileIdStr), storeFilePath)
   }
 
   /**
