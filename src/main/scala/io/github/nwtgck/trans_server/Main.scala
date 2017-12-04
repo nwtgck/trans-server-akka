@@ -31,7 +31,6 @@ object Main {
           Try(httpsPortStr.toInt).getOrElse(DEFAULT_HTTPS_PORT)
         )
       case _ =>
-//        (DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT)
         (sys.env.getOrElse("PORT", DEFAULT_HTTP_PORT.toString).toInt, DEFAULT_HTTPS_PORT)
     }
 
@@ -66,18 +65,22 @@ object Main {
       }
     })
 
-    // TODO Recomment-out
-//    // Generate a HttpsConnectionContext
-//    val httpsConnectionContext: HttpsConnectionContext = generateHttpsConnectionContext()
-
     for {
       // Create a table if not exist
       _ <- Tables.createTablesIfNotExist(db)
 
       // Run the HTTP server
       _ <- Http().bindAndHandle(core.route, HOST, httpPort)
-      // TODO Recomment-out
-//      _ <- Http().bindAndHandle(core.route, HOST, httpsPort, connectionContext = httpsConnectionContext)
+      _ <- {
+        if(new File(Setting.KEY_STORE_PATH).exists()) {
+          // Generate a HttpsConnectionContext
+          val httpsConnectionContext: HttpsConnectionContext = generateHttpsConnectionContext()
+          // Run the HTTPS server
+          Http().bindAndHandle(core.route, HOST, httpsPort, connectionContext = httpsConnectionContext)
+        } else {
+          Future.successful()
+        }
+      }
       _ <- Future.successful{println(s"Listening HTTP  on ${httpPort}...")}
       _ <- Future.successful{println(s"Listening HTTPS on ${httpsPort}...")}
     } yield ()

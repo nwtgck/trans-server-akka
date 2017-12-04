@@ -5,7 +5,7 @@
 # cf push
 
 applications:
-  - name: TransServer
+  - name: trans-akka
     buildpack: java_buildpack
     path: ./target/universal/trans-server-akka-1.6.0.zip
     instances: 1
