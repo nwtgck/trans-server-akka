@@ -1,13 +1,14 @@
 package io.github.nwtgck.trans_server
 
 import java.io.File
+import java.io.InputStream
 import java.nio.file.StandardOpenOption
 import javax.crypto.Cipher
 
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import akka.http.scaladsl.server.Route
-import akka.stream.scaladsl.{Broadcast, Compression, FileIO, GraphDSL, RunnableGraph, Sink, Source}
+import akka.stream.scaladsl.{Broadcast, Compression, FileIO, GraphDSL, RunnableGraph, Sink, Source, StreamConverters}
 import akka.stream.{ActorMaterializer, ClosedShape, IOResult}
 import akka.util.ByteString
 import io.github.nwtgck.trans_server.Tables.OriginalTypeImplicits._
@@ -172,8 +173,8 @@ class Core(db: Database, fileDbPath: String){
       // "Get /" for confirming whether the server is running
       pathSingleSlash {
         complete {
-          val indexFile = new File("trans-client-web/index.html")
-          HttpEntity.fromPath(ContentTypes.`text/html(UTF-8)`, indexFile.toPath)
+          val indexInputStream: InputStream = Core.this.getClass.getClassLoader.getResourceAsStream("index.html") // (from: https://hacknote.jp/archives/18441/)
+          HttpEntity(ContentTypes.`text/html(UTF-8)`, StreamConverters.fromInputStream(() => indexInputStream))
         }
       } ~
       // Version routing

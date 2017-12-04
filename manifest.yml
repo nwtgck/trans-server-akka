@@ -1,3 +1,5 @@
+# (from: http://modalsoul.github.io/programming/2017/01/22/deploy-playframework-application-to-bluemix.html)
+
 # Command:
 # sbt dist
 # cf push

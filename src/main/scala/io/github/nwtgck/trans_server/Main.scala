@@ -32,7 +32,7 @@ object Main {
         )
       case _ =>
 //        (DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT)
-        (sys.env("PORT").toInt, DEFAULT_HTTPS_PORT)
+        (sys.env.getOrElse("PORT", DEFAULT_HTTP_PORT.toString).toInt, DEFAULT_HTTPS_PORT)
     }
 
 //     Create a memory-base db

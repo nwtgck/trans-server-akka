@@ -21,6 +21,8 @@ lazy val root = (project in file(".")).
     // Change jar name by "sbt assembly"
     assemblyJarName in assembly := { s"${name.value}.jar" },
 
+    unmanagedResourceDirectories in Compile += baseDirectory.value / "trans-client-web",
+
     libraryDependencies ++= Seq(
       // sbt from http://akka.io/docs/
       "com.typesafe.akka" %% "akka-http-core" % akkaVersion,
