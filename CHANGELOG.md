@@ -3,20 +3,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
+## [1.6.0] - 2017-12-03
+### Added
+- GET `/help` routing for help
+- GET `/version` routing for version
+
+### Fixed
+- Return "Content-Length" in HTTP response to adapt [`pget`](https://github.com/Code-Hex/pget)
+
 ## [1.5.1] - 2017-12-01
-### Change
+### Changed
 - Ignore cases, for example `true`, `True` or `TRUE` in `deletable` parameter
 - Allow to users to specify keystore outside of Docker container
 
 ## [1.5.0] - 2017-11-27
-### Change
+### Changed
 - Rename GET parameters
   - `key` => `delete-key`
   - `length` => `id-length`
   - `times` => `get-times` 
 
 ## [1.4.0] - 2017-11-27
-### Change
+### Changed
 - Encrypt stored files in the server
 - Compress stored files in the server
 
@@ -52,6 +60,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - Adapt [`sbt-native-packager`](https://github.com/sbt/sbt-native-packager) for [Heroku](https://heroku.com/)
 
 
+[1.6.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/nwtgck/trans-server-akka/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.3.1...v1.4.0
