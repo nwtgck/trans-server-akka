@@ -1,0 +1,12 @@
+# (from: http://modalsoul.github.io/programming/2017/01/22/deploy-playframework-application-to-bluemix.html)
+
+# Command:
+# sbt dist
+# cf push
+
+applications:
+  - name: trans-akka
+    buildpack: java_buildpack
+    path: ./target/universal/trans-server-akka-1.6.0.zip
+    instances: 1
+    memory: 256M

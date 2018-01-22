@@ -171,10 +171,7 @@ class Core(db: Database, fileDbPath: String){
     get {
       // "Get /" for confirming whether the server is running
       pathSingleSlash {
-        complete {
-          val indexFile = new File("trans-client-web/index.html")
-          HttpEntity.fromPath(ContentTypes.`text/html(UTF-8)`, indexFile.toPath)
-        }
+        getFromResource("index.html") // (from: https://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/directives/file-and-resource-directives/getFromResource.html)
       } ~
       // Version routing
       path(Setting.GetRouteName.Version) {

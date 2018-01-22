@@ -9,9 +9,9 @@ Transmit files by using **only common Uninx/Linux commands, `curl` or `wget`**
 
 
 
-## Public Server on Heroku 
+## Public Server on IBM Cloud (Bluemix)
 
-https://trans-akka.herokuapp.com/
+https://trans-akka.mybluemix.net/
 
 
 ## Quick Start
@@ -20,18 +20,18 @@ You can send, download and delete a file by the following commands.
 
 ```
 # Send a file
-wget -q -O - https://trans-akka.herokuapp.com/ --post-file=./test.txt
+wget -q -O - https://trans-akka.mybluemix.net/ --post-file=./test.txt
 ```
 
 ```
 # Downlaod the file
-wget https://trans-akka.herokuapp.com/a7h
+wget https://trans-akka.mybluemix.net/a7h
 # ('a7h' is a File ID created after sending)
 ```
 
 ```
 # Delete a file
-wget -q -O - --method DELETE https://trans-akka.herokuapp.com/a7h
+wget -q -O - --method DELETE https://trans-akka.mybluemix.net/a7h
 ```
 
 
@@ -118,7 +118,7 @@ $ sudo java -jar target/scala-2.11/trans-server-akka.jar 80 443
 The following example is sending `../test.txt`
 
 ```
-$ curl https://trans-akka.herokuapp.com/ --data-binary @../test.txt
+$ curl https://trans-akka.mybluemix.net/ --data-binary @../test.txt
 ```
 
 #### output
@@ -134,7 +134,7 @@ The server response, `ab2` is a File ID to get `../test.txt`
 The following example sends `../test.txt`
 
 ```sh
-$ wget -q -O - https://trans-akka.herokuapp.com/ --post-file=../test.txt
+$ wget -q -O - https://trans-akka.mybluemix.net/ --post-file=../test.txt
 ```
 
 * `-q` is for non-progress bar
@@ -205,7 +205,7 @@ Content-Length: 4
 ### Way 1 - wget
 
 ```sh
-$ wget https://trans-akka.herokuapp.com/ab2
+$ wget https://trans-akka.mybluemix.net/ab2
 ```
 
 `ab2` is a File ID.
@@ -214,7 +214,7 @@ $ wget https://trans-akka.herokuapp.com/ab2
 
 
 ```sh
-$ curl https://trans-akka.herokuapp.com/ab2 > test.txt
+$ curl https://trans-akka.mybluemix.net/ab2 > test.txt
 ```
 
 `ab2` is a File ID.
@@ -222,7 +222,7 @@ $ curl https://trans-akka.herokuapp.com/ab2 > test.txt
 
 ### Way 3 - Using a Browser
 
-Open `https://trans-akka.herokuapp.com/ab2` on your browser
+Open `https://trans-akka.mybluemix.net/ab2` on your browser
 
 `ab2` is a File ID.
 
@@ -242,7 +242,7 @@ Here is options you can use when sending
 ### An example with options
 
 ```bash
-wget -q -O - 'https://trans-akka.herokuapp.com/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234' --post-file=./hello.txt
+wget -q -O - 'https://trans-akka.mybluemix.net/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234' --post-file=./hello.txt
 ```
 
 The command means
@@ -262,16 +262,16 @@ The command means
 All bellow are valid usages.
 
 ```bash
-'https://trans-akka.herokuapp.com/?deletable'
+'https://trans-akka.mybluemix.net/?deletable'
 # (same meaning as `deletable=true`)
 ```
 
 ```bash
-'https://trans-akka.herokuapp.com/?deletable=true'
+'https://trans-akka.mybluemix.net/?deletable=true'
 ```
 
 ```bash
-'https://trans-akka.herokuapp.com/?deletable=false'
+'https://trans-akka.mybluemix.net/?deletable=false'
 ```
 
 
@@ -281,12 +281,12 @@ All bellow are valid usages.
 
 ```bash
 # wget version
-wget -q -O - --method=DELETE 'https://trans-akka.herokuapp.com/vua'
+wget -q -O - --method=DELETE 'https://trans-akka.mybluemix.net/vua'
 ```
 
 ```bash
 # curl version
-curl -X DELETE 'https://trans-akka.herokuapp.com/vua'
+curl -X DELETE 'https://trans-akka.mybluemix.net/vua'
 ```
 (`vua` is a File ID)
 
@@ -294,24 +294,14 @@ curl -X DELETE 'https://trans-akka.herokuapp.com/vua'
 
 ```bash
 # wget version
-wget -q -O - --method=DELETE 'https://trans-akka.herokuapp.com/6em?delete-key=1234'
+wget -q -O - --method=DELETE 'https://trans-akka.mybluemix.net/6em?delete-key=1234'
 ```
 
 ```bash
 # curl version
-curl -X DELETE 'https://trans-akka.herokuapp.com/6em?delete-key=1234'
+curl -X DELETE 'https://trans-akka.mybluemix.net/6em?delete-key=1234'
 ```
 
+## My Note
 
-
-## How to deploy on Heroku
-
-```sh
-$ git clone <this repo uri>
-$ cd <this repo>
-$ heroku create
-$ git push heroku master
-# Done !
-# You can go to https://<app name>.herokuapp.com/
-```
-
+[MYNOTE.md](MYNOTE.md)
