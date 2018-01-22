@@ -179,41 +179,46 @@ class Core(db: Database, fileDbPath: String){
         complete(s"${BuildInfo.version}\n")
       } ~
       path(Setting.GetRouteName.Help) {
-        complete( // TODO Should(?) move text content somewhere
-          s"""|Help for trans (${BuildInfo.version})
-              |(Repository: https://github.com/nwtgck/trans-server-akka)
-              |(NOTE: hogehoge.io is a dummy domain)
-              |
-              |====== wget =====
-              |# Send  : wget -q -O - https://hogehoge.io --post-file=test.txt
-              |# Get   : wget https://hogehoge.io/a3h
-              |# Delete: wget --method=DELETE https://hogehoge.io/a3h
-              |('a3h' is File ID of test.txt)
-              |
-              |===== curl ======
-              |# Send  : curl https://hogehoge.io --data-binary @test.txt
-              |# Get   : curl https://hogehoge.io/a3h > mytest.txt
-              |# Delete: curl -X DELETE https://hogehoge.io/a3h
-              |('a3h' is File ID of test.txt)
-              |
-              |===== Option Example =====
-              |# Send (duration: 30 sec, Download limit: once, ID length: 16, Delete key: 'mykey1234')
-              |wget -q -O - 'https://hogehoge.io/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234' --post-file=./test.txt
-              |
-              |# Delete with delete key
-              |wget --method DELETE 'https://hogehoge.io/a3h?delete-key=mykey1234'
-              |
-              |
-              |------ Installation of trans-cli ------
-              |pip3 install --upgrade git+https://github.com/nwtgck/trans-cli-python@master
-              |
-              |------ Tip: directory sending (zip) ------
-              |zip -q -r - ./mydir | curl -X POST https://hogehoge.io --data-binary @-
-              |
-              |------ Tip: directory sending (tar.gz) ------
-              |tar zfcp - ./mydir/ | curl -X POST https://hogehoge.io --data-binary @-
-              |""".stripMargin
-        )
+        extractUri {uri =>
+          // NOTE: uri.authority contains both host and port
+          val urlStr: String = s"${uri.scheme}://${uri.authority}"
+
+          complete( // TODO Should(?) move text content somewhere
+            s"""|Help for trans (${BuildInfo.version})
+                |(Repository: https://github.com/nwtgck/trans-server-akka)
+                |
+                |====== wget =====
+                |# Send  : wget -q -O - https://hogehoge.io --post-file=test.txt
+                |# Get   : wget https://hogehoge.io/a3h
+                |# Delete: wget --method=DELETE ${urlStr}/a3h
+                |('a3h' is File ID of test.txt)
+                |
+                |===== curl ======
+                |# Send  : curl ${urlStr} --data-binary @test.txt
+                |# Get   : curl https://hogehoge.io/a3h > mytest.txt
+                |# Delete: curl -X DELETE https://hogehoge.io/a3h
+                |('a3h' is File ID of test.txt)
+                |
+                |===== Option Example =====
+                |# Send (duration: 30 sec, Download limit: once, ID length: 16, Delete key: 'mykey1234')
+                |wget -q -O - '${urlStr}/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234' --post-file=./test.txt
+                |
+                |# Delete with delete key
+                |wget --method DELETE 'https://hogehoge.io/a3h?delete-key=mykey1234'
+                |
+                |
+                |------ Installation of trans-cli ------
+                |pip3 install --upgrade git+https://github.com/nwtgck/trans-cli-python@master
+                |
+                |------ Tip: directory sending (zip) ------
+                |zip -q -r - ./mydir | curl -X POST ${urlStr} --data-binary @-
+                |
+                |------ Tip: directory sending (tar.gz) ------
+                |tar zfcp - ./mydir/ | curl -X POST ${urlStr} --data-binary @-
+                |""".stripMargin
+          )
+        }
+
       } ~
       path(Remaining) { fileIdStr =>
         // Generate file ID instance
