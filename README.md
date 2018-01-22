@@ -63,7 +63,7 @@ You can choose any ways you want bellow.
 [![Docker Automated build](https://img.shields.io/docker/automated/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/)
 
 ```bash
-docker run -p 8080:80 nwtgck/trans-server-akka:v1.6.0
+docker run -p 8080:80 nwtgck/trans-server-akka:v1.7.0
 ```
 
 Then you can go http://localhost:8080/
@@ -73,7 +73,7 @@ Then you can go http://localhost:8080/
 You can also run the following command for **daemonize** and **data persistence**.
 
 ```bash
-docker run -d -p 8080:80 -v $PWD/trans-db:/trans/db --restart=always nwtgck/trans-server-akka:v1.6.0
+docker run -d -p 8080:80 -v $PWD/trans-db:/trans/db --restart=always nwtgck/trans-server-akka:v1.7.0
 ```
 
 Data will be stored in `$PWD/trans-db` on your host machine. (Currently file-base H2 database is used, and files sent are stored as compressed and encrypted files)
