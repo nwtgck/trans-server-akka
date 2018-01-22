@@ -188,15 +188,15 @@ class Core(db: Database, fileDbPath: String){
                 |(Repository: https://github.com/nwtgck/trans-server-akka)
                 |
                 |====== wget =====
-                |# Send  : wget -q -O - https://hogehoge.io --post-file=test.txt
-                |# Get   : wget https://hogehoge.io/a3h
+                |# Send  : wget -q -O - ${urlStr} --post-file=test.txt
+                |# Get   : wget ${urlStr}/a3h
                 |# Delete: wget --method=DELETE ${urlStr}/a3h
                 |('a3h' is File ID of test.txt)
                 |
                 |===== curl ======
                 |# Send  : curl ${urlStr} --data-binary @test.txt
-                |# Get   : curl https://hogehoge.io/a3h > mytest.txt
-                |# Delete: curl -X DELETE https://hogehoge.io/a3h
+                |# Get   : curl ${urlStr}/a3h > mytest.txt
+                |# Delete: curl -X DELETE ${urlStr}/a3h
                 |('a3h' is File ID of test.txt)
                 |
                 |===== Option Example =====
@@ -204,7 +204,7 @@ class Core(db: Database, fileDbPath: String){
                 |wget -q -O - '${urlStr}/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234' --post-file=./test.txt
                 |
                 |# Delete with delete key
-                |wget --method DELETE 'https://hogehoge.io/a3h?delete-key=mykey1234'
+                |wget --method DELETE '${urlStr}/a3h?delete-key=mykey1234'
                 |
                 |
                 |------ Installation of trans-cli ------
