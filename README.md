@@ -8,6 +8,13 @@ Transmit files by using **only common Uninx/Linux commands, `curl` or `wget`**
 | [`develop`](https://github.com/nwtgck/trans-server-akka/tree/develop) | [![Build Status](https://travis-ci.org/nwtgck/trans-server-akka.svg?branch=develop)](https://travis-ci.org/nwtgck/trans-server-akka) |
 
 
+## Send a file by wget
+
+![wget_send](demos/wget_send.gif)
+
+## Download the file by wget
+
+![wget_get](demos/wget_get.gif)
 
 ## Public Server on Heroku
 
