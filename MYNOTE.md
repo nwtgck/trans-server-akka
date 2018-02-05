@@ -14,7 +14,10 @@ $ git push heroku master
 ## How to deploy on IBM Cloud (Bluemix)
 
 ```sh
-<Log in Bluemix>
+# Log in Bluemix
+# (Change -a and -o properly)
+cf login -a https://api.ng.bluemix.net -u nwtgck@gmail.com
+# <Input password for Bluemix>
 sbt dist
 cf push
 ```
