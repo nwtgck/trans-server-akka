@@ -21,3 +21,9 @@ cf login -a https://api.ng.bluemix.net -u nwtgck@gmail.com
 sbt dist
 cf push
 ```
+
+## Files with hard-code version
+
+* [build.sbt](build.sbt)
+* [README.md](README.md) (Docker tag or etc)
+* [manifest.yml](manifest.yml) (path of zip)
