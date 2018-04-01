@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
+## [1.7.0] - 2018-01-22
+### Added
+- Add [manifest.yml](manifest.yml) for [IBM Cloud](https://www.ibm.com/cloud/)
+### Changed
+- Make `/help` page to be easy to copy
+
 ## [1.6.0] - 2017-12-03
 ### Added
 - GET `/help` routing for help
@@ -60,6 +66,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - Adapt [`sbt-native-packager`](https://github.com/sbt/sbt-native-packager) for [Heroku](https://heroku.com/)
 
 
+[1.7.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/nwtgck/trans-server-akka/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.4.0...v1.5.0

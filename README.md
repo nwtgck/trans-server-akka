@@ -8,10 +8,17 @@ Transmit files by using **only common Uninx/Linux commands, `curl` or `wget`**
 | [`develop`](https://github.com/nwtgck/trans-server-akka/tree/develop) | [![Build Status](https://travis-ci.org/nwtgck/trans-server-akka.svg?branch=develop)](https://travis-ci.org/nwtgck/trans-server-akka) |
 
 
+## Send a file by wget
+
+![wget_send](demos/wget_send.gif)
+
+## Download the file by wget
+
+![wget_get](demos/wget_get.gif)
 
 ## Public Server on Heroku
 
-http://trans-akka.herokuapp.com/
+https://trans-akka.herokuapp.com/
 
 
 ## Quick Start
@@ -20,18 +27,18 @@ You can send, download and delete a file by the following commands.
 
 ```
 # Send a file
-wget -q -O - http://trans-akka.herokuapp.com/ --post-file=./test.txt
+wget -q -O - https://trans-akka.herokuapp.com/ --post-file=./test.txt
 ```
 
 ```
 # Downlaod the file
-wget http://trans-akka.herokuapp.com/a7h
+wget https://trans-akka.herokuapp.com/a7h
 # ('a7h' is a File ID created after sending)
 ```
 
 ```
 # Delete a file
-wget -q -O - --method DELETE http://trans-akka.herokuapp.com/a7h
+wget -q -O - --method DELETE https://trans-akka.herokuapp.com/a7h
 ```
 
 
@@ -63,7 +70,7 @@ You can choose any ways you want bellow.
 [![Docker Automated build](https://img.shields.io/docker/automated/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/)
 
 ```bash
-docker run -p 8080:80 nwtgck/trans-server-akka:v1.6.0
+docker run -p 8080:80 nwtgck/trans-server-akka:v1.7.0
 ```
 
 Then you can go http://localhost:8080/
@@ -73,7 +80,7 @@ Then you can go http://localhost:8080/
 You can also run the following command for **daemonize** and **data persistence**.
 
 ```bash
-docker run -d -p 8080:80 -v $PWD/trans-db:/trans/db --restart=always nwtgck/trans-server-akka:v1.6.0
+docker run -d -p 8080:80 -v $PWD/trans-db:/trans/db --restart=always nwtgck/trans-server-akka:v1.7.0
 ```
 
 Data will be stored in `$PWD/trans-db` on your host machine. (Currently file-base H2 database is used, and files sent are stored as compressed and encrypted files)
@@ -118,7 +125,7 @@ $ sudo java -jar target/scala-2.11/trans-server-akka.jar 80 443
 The following example is sending `../test.txt`
 
 ```
-$ curl http://trans-akka.herokuapp.com/ --data-binary @../test.txt
+$ curl https://trans-akka.herokuapp.com/ --data-binary @../test.txt
 ```
 
 #### output
@@ -134,7 +141,7 @@ The server response, `ab2` is a File ID to get `../test.txt`
 The following example sends `../test.txt`
 
 ```sh
-$ wget -q -O - http://trans-akka.herokuapp.com/ --post-file=../test.txt
+$ wget -q -O - https://trans-akka.herokuapp.com/ --post-file=../test.txt
 ```
 
 * `-q` is for non-progress bar
@@ -205,7 +212,7 @@ Content-Length: 4
 ### Way 1 - wget
 
 ```sh
-$ wget http://trans-akka.herokuapp.com/ab2
+$ wget https://trans-akka.herokuapp.com/ab2
 ```
 
 `ab2` is a File ID.
@@ -214,7 +221,7 @@ $ wget http://trans-akka.herokuapp.com/ab2
 
 
 ```sh
-$ curl http://trans-akka.herokuapp.com/ab2 > test.txt
+$ curl https://trans-akka.herokuapp.com/ab2 > test.txt
 ```
 
 `ab2` is a File ID.
@@ -222,7 +229,7 @@ $ curl http://trans-akka.herokuapp.com/ab2 > test.txt
 
 ### Way 3 - Using a Browser
 
-Open `http://trans-akka.herokuapp.com/ab2` on your browser
+Open `https://trans-akka.herokuapp.com/ab2` on your browser
 
 `ab2` is a File ID.
 
@@ -242,7 +249,7 @@ Here is options you can use when sending
 ### An example with options
 
 ```bash
-wget -q -O - 'http://trans-akka.herokuapp.com/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234' --post-file=./hello.txt
+wget -q -O - 'https://trans-akka.herokuapp.com/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234' --post-file=./hello.txt
 ```
 
 The command means
@@ -262,16 +269,16 @@ The command means
 All bellow are valid usages.
 
 ```bash
-'http://trans-akka.herokuapp.com/?deletable'
+'https://trans-akka.herokuapp.com/?deletable'
 # (same meaning as `deletable=true`)
 ```
 
 ```bash
-'http://trans-akka.herokuapp.com/?deletable=true'
+'https://trans-akka.herokuapp.com/?deletable=true'
 ```
 
 ```bash
-'http://trans-akka.herokuapp.com/?deletable=false'
+'https://trans-akka.herokuapp.com/?deletable=false'
 ```
 
 
@@ -281,12 +288,12 @@ All bellow are valid usages.
 
 ```bash
 # wget version
-wget -q -O - --method=DELETE 'http://trans-akka.herokuapp.com/vua'
+wget -q -O - --method=DELETE 'https://trans-akka.herokuapp.com/vua'
 ```
 
 ```bash
 # curl version
-curl -X DELETE 'http://trans-akka.herokuapp.com/vua'
+curl -X DELETE 'https://trans-akka.herokuapp.com/vua'
 ```
 (`vua` is a File ID)
 
@@ -294,12 +301,12 @@ curl -X DELETE 'http://trans-akka.herokuapp.com/vua'
 
 ```bash
 # wget version
-wget -q -O - --method=DELETE 'http://trans-akka.herokuapp.com/6em?delete-key=1234'
+wget -q -O - --method=DELETE 'https://trans-akka.herokuapp.com/6em?delete-key=1234'
 ```
 
 ```bash
 # curl version
-curl -X DELETE 'http://trans-akka.herokuapp.com/6em?delete-key=1234'
+curl -X DELETE 'https://trans-akka.herokuapp.com/6em?delete-key=1234'
 ```
 
 ## My Note
