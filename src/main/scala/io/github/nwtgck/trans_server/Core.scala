@@ -304,37 +304,38 @@ class Core(db: Database, fileDbPath: String){
 
     } ~
     // "Post /" for client-sending a file
-    (post & path("multipart") & entity(as[Multipart.FormData])) { formData =>
-
+    (post & path("multipart")) {
       // Process GET Parameters
       processGetParamsRoute{getParams =>
-
         // (hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities)
         withoutSizeLimit {
-          val fileIdsSource: Source[FileId, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
-            // Get data bytes
-            val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
+          entity(as[Multipart.FormData]) {formData =>
+            val fileIdsSource: Source[FileId, Any] = formData.parts.mapAsync(1) { bodyPart: BodyPart =>
+              // Get data bytes
+              val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
 
-            // Store bytes to DB
-            storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt)
+              // Store bytes to DB
+              storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt)
+            }
+
+            val fileIdsFut: Future[List[FileId]] = fileIdsSource.runFold(List.empty[FileId])((l, s) => l :+ s)
+
+
+            onComplete(fileIdsFut) {
+              case Success(fileIds) =>
+                complete(fileIds.map(_.value).mkString("\n"))
+              case Failure(e) =>
+                println(e)
+                e match {
+                  case e : FileIdGenFailedException =>
+                    complete(e.getMessage)
+                  case _ =>
+                    complete("Upload failed") // TODO Change response
+
+                }
+            }
           }
 
-          val fileIdsFut: Future[List[FileId]] = fileIdsSource.runFold(List.empty[FileId])((l, s) => l :+ s)
-
-
-          onComplete(fileIdsFut) {
-            case Success(fileIds) =>
-              complete(fileIds.map(_.value).mkString("\n"))
-            case Failure(e) =>
-              println(e)
-              e match {
-                case e : FileIdGenFailedException =>
-                  complete(e.getMessage)
-                case _ =>
-                  complete("Upload failed") // TODO Change response
-
-              }
-          }
         }
       }
     } ~
