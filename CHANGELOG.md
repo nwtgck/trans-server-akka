@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
+## [Unreleased]
+
+## [1.7.1] - 2018-04-01
+### Fixed
+- Fix not to fail to upload big file via multipart because of size limit
+
 ## [1.7.0] - 2018-01-22
 ### Added
 - Add [manifest.yml](manifest.yml) for [IBM Cloud](https://www.ibm.com/cloud/)
@@ -66,6 +72,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - Adapt [`sbt-native-packager`](https://github.com/sbt/sbt-native-packager) for [Heroku](https://heroku.com/)
 
 
+[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.7.1...HEAD
+[1.7.1]: https://github.com/nwtgck/trans-server-akka/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/nwtgck/trans-server-akka/compare/v1.5.0...v1.5.1
