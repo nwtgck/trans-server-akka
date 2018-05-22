@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.9.0] - 2018-05-22
+### Changed
+- Not to generate file ID including misunderstandable chararacters
+
 ## [1.8.0] - 2018-04-06
 ### Added
 - Add text-sending form in web client
@@ -77,6 +81,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 
 [Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.7.1...HEAD
+[1.9.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/nwtgck/trans-server-akka/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.6.0...v1.7.0
