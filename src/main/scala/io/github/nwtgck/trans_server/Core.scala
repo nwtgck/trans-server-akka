@@ -556,11 +556,9 @@ class Core(db: Database, fileDbPath: String){
     * @return Random File ID
     */
   def generateRandomFileId(idLength: Int): String = {
-    // 1 ~ 9 + 'a' ~ 'z'
-    val candidates: Seq[String] = ((0 to 9) ++ ('a' to 'z')).map(_.toString)
     val i = (1 to idLength).map{_ =>
-      val idx = secureRandom.nextInt(candidates.length)
-      candidates(idx)
+      val idx = secureRandom.nextInt(Setting.candidateChars.length)
+      Setting.candidateChars(idx)
     }
     i.mkString
   }
