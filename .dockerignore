@@ -9,3 +9,5 @@
 *.keystore
 
 /Procfile
+
+/Dockerfile
