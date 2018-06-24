@@ -7,6 +7,6 @@
 applications:
   - name: trans-akka
     buildpack: java_buildpack
-    path: ./target/universal/trans-server-akka-1.10.0.zip
+    path: ./target/universal/trans-server-akka.zip
     instances: 1
     memory: 256M

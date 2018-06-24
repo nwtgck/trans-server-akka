@@ -26,4 +26,3 @@ cf push
 
 * [build.sbt](build.sbt)
 * [README.md](README.md) (Docker tag or etc)
-* [manifest.yml](manifest.yml) (path of zip)
