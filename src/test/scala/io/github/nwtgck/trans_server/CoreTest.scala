@@ -216,24 +216,36 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
   test("[positive] send with length=100000 (too big)") {
     val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     val fileIdLength: Int    = 100000
+    var fileId: String = null
     Post(s"/?id-length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
       // Get file ID
-      val fileId: String = responseAs[String].trim
+      fileId = responseAs[String].trim
       println(s"fileId: ${fileId}")
       // File ID length should be MaxIdLength
       fileId.length shouldBe Setting.MaxIdLength
+    }
+    Get(s"/${fileId}") ~> core.route ~> check {
+      val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe fileContent
     }
   }
 
   test("[positive] send with length=1 (too small)") {
     val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     val fileIdLength: Int    = 1
+    var fileId: String = null
     Post(s"/?length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
       // Get file ID
-      val fileId: String = responseAs[String].trim
+      fileId = responseAs[String].trim
       println(s"fileId: ${fileId}")
       // File ID length should be MinIdLength
       fileId.length shouldBe Setting.MinIdLength
+    }
+    Get(s"/${fileId}") ~> core.route ~> check {
+      val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe fileContent
     }
   }
 
