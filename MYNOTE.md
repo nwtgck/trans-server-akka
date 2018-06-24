@@ -24,5 +24,4 @@ cf push
 
 ## Files with hard-code version
 
-* [build.sbt](build.sbt)
-* [README.md](README.md) (Docker tag or etc)
+* [build.sbt](build.sbt) (This is natural)
