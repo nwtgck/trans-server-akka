@@ -2,7 +2,7 @@ import sbtassembly.AssemblyPlugin.autoImport.assemblyJarName
 
 name := "trans-server-akka"
 
-version := "1.10.0"
+version := "1.11.0"
 
 scalaVersion := "2.11.8"
 
@@ -22,6 +22,10 @@ lazy val root = (project in file(".")).
     assemblyJarName in assembly := { s"${name.value}.jar" },
 
     unmanagedResourceDirectories in Compile += baseDirectory.value / "trans-client-web",
+
+    // Set name of target/universal/<name>.zip
+    // (from: https://stackoverflow.com/a/40765824/2885946)
+    packageName in Universal := s"${name.value}",
 
     libraryDependencies ++= Seq(
       // sbt from http://akka.io/docs/
