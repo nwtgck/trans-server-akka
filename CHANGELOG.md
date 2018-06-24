@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.10.0] - 2018-06-24
+### Changed
+- Allow user to get file by any end-path
+
+## [1.9.0] - 2018-05-22
+### Changed
+- Not to generate file ID including misunderstandable chararacters
+
 ## [1.8.0] - 2018-04-06
 ### Added
 - Add text-sending form in web client
@@ -76,7 +84,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - Adapt [`sbt-native-packager`](https://github.com/sbt/sbt-native-packager) for [Heroku](https://heroku.com/)
 
 
-[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.7.1...HEAD
+[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.9.0...v1.10.0
+[1.9.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/nwtgck/trans-server-akka/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.6.0...v1.7.0

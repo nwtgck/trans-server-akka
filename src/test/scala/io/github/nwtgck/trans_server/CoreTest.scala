@@ -58,6 +58,18 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       // response should be original
       resContent shouldBe originalContent
     }
+
+    Get(s"/${fileId}/hoge.txt") ~> core.route ~> check {
+      val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe originalContent
+    }
+
+    Get(s"/${fileId}/foo.dummyextension") ~> core.route ~> check {
+      val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe originalContent
+    }
   }
   test("[positive] send/get big data") {
 

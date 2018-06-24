@@ -220,7 +220,9 @@ class Core(db: Database, fileDbPath: String){
         }
 
       } ~
-      path(Remaining) { fileIdStr =>
+      path(RemainingPath) { path =>
+        // Get file ID string
+        val fileIdStr = path.head.toString
         // Generate file ID instance
         val fileId: FileId = FileId(fileIdStr)
 
