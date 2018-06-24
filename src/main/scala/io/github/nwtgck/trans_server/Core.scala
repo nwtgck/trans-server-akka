@@ -275,11 +275,9 @@ class Core(db: Database, fileDbPath: String){
       }
 
     } ~
-    // "Post /" for client-sending a file
-    (post & pathSingleSlash) {
-
-      // Process GET Parameters
-      processGetParamsRoute{getParams =>
+    {
+      // Route of sending
+      val sendingRoute: Route = processGetParamsRoute { getParams => // Process GET Parameters
         // Get a file from client and store it
         // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
         withoutSizeLimit {
@@ -287,13 +285,13 @@ class Core(db: Database, fileDbPath: String){
             // Store bytes to DB
             val storeFut: Future[FileId] = storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt)
 
-            onComplete(storeFut){
+            onComplete(storeFut) {
               case Success(fileId) =>
                 complete(s"${fileId.value}\n")
               case Failure(e) =>
                 println(e)
                 e match {
-                  case e : FileIdGenFailedException =>
+                  case e: FileIdGenFailedException =>
                     complete(e.getMessage)
                   case _ =>
                     complete("Upload failed") // TODO Change response
@@ -304,6 +302,10 @@ class Core(db: Database, fileDbPath: String){
         }
       }
 
+      // Send by POST
+      (post & pathSingleSlash)(sendingRoute) ~
+      // Send by PUT
+      (put & path(Remaining))(_ => sendingRoute)
     } ~
     // "Post /" for client-sending a file
     (post & path("multipart")) {
