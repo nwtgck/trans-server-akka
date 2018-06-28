@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.12.0] - 2018-06-28
+### Added
+- Adapt to deletion in Web client
+
+### Changed
+- Allow cross origin access
+
 ## [1.11.0] - 2018-06-24
 ### Added
 - Adapt to sending a file by PUT method
@@ -91,7 +98,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - Adapt [`sbt-native-packager`](https://github.com/sbt/sbt-native-packager) for [Heroku](https://heroku.com/)
 
 
-[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.8.0...v1.9.0
