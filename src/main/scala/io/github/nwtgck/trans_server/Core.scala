@@ -2,11 +2,13 @@ package io.github.nwtgck.trans_server
 
 import java.io.File
 import java.nio.file.StandardOpenOption
-import javax.crypto.Cipher
 
+import javax.crypto.Cipher
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
-import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.model.headers
+import akka.http.scaladsl.model.headers.HttpOrigin
+import akka.http.scaladsl.server.{Directive0, Route}
 import akka.stream.scaladsl.{Broadcast, Compression, FileIO, GraphDSL, RunnableGraph, Sink, Source}
 import akka.stream.{ActorMaterializer, ClosedShape, IOResult}
 import akka.util.ByteString
@@ -157,10 +159,19 @@ class Core(db: Database, fileDbPath: String){
     }
   }
 
+  // This directive allow cross origin
+  // (from: https://gist.github.com/jeroenr/5261fa041d592f37cd80#file-corshandler-scala-L16)
+  private val allowCrossOrigin: Directive0 = {
+    import akka.http.scaladsl.server.Directives._
+    respondWithHeaders(
+      headers.`Access-Control-Allow-Origin`(headers.HttpOriginRange.*)
+    )
+  }
+
   /**
     * Http Server's Routing
     */
-  def route(implicit materializer: ActorMaterializer): Route = {
+  def route(implicit materializer: ActorMaterializer): Route = allowCrossOrigin {
     // for routing DSL
     import akka.http.scaladsl.server.Directives._
     // for using XML
