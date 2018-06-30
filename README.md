@@ -240,16 +240,17 @@ Here is options you can use when sending
 
 |GET parameter | default value | decription |
 |---|---:|---|
-| `duration`   | 1 hour        | Store duration/life             |
-| `get-times`  | any times     | How many times you can download |
-| `id-length`  | `3`           | Length of File ID               |
-| `deletable`  | `true`        | Whether a file can be deleted   |
-| `delete-key` | nothing       | Key for deletion                | 
+| `duration`    | 1 hour        | Store duration/life                                  |
+| `get-times`   | infinite      | How many times you can download                      |
+| `id-length`   | `3`           | Length of File ID                                    |
+| `deletable`   | `true`        | Whether a file can be deleted                        |
+| `delete-key`  | nothing       | Key for deletion                                     | 
+| `secure-char` | `false`       | Whether more complex characters are used for File ID | 
 
 ### An example with options
 
 ```bash
-wget -q -O - 'https://trans-akka.herokuapp.com/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234' --post-file=./hello.txt
+wget -q -O - 'https://trans-akka.herokuapp.com/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234&secure-char' --post-file=./hello.txt
 ```
 
 The command means
@@ -257,6 +258,7 @@ The command means
 * download once
 * File ID length is 16
 * The file is deletable and key is `'mykey1234'`
+* Use more complex characters for File ID
 
 ### Available duration examples
 * `10s` - 10 seconds

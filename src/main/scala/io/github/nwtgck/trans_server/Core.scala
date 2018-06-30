@@ -28,11 +28,12 @@ import scala.util.{Failure, Random, Success, Try}
   * @param isDeletable
   * @param deleteKeyOpt
   */
-private [this] case class GetParams(duration     : FiniteDuration,
-                                    nGetLimitOpt : Option[Int],
-                                    idLengthOpt  : Option[Int],
-                                    isDeletable  : Boolean,
-                                    deleteKeyOpt : Option[String])
+private [this] case class GetParams(duration       : FiniteDuration,
+                                    nGetLimitOpt   : Option[Int],
+                                    idLengthOpt    : Option[Int],
+                                    isDeletable    : Boolean,
+                                    deleteKeyOpt   : Option[String],
+                                    usesSecureChar : Boolean)
 
 class Core(db: Database, fileDbPath: String){
 
@@ -41,8 +42,7 @@ class Core(db: Database, fileDbPath: String){
   // (from: https://qiita.com/suin/items/bfff121c8481990e1507)
   private val secureRandom: Random = new Random(new java.security.SecureRandom())
 
-
-  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int], idLengthOpt: Option[Int], isDeletable: Boolean, deleteKeyOpt: Option[String])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[FileId] = {
+  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int], idLengthOpt: Option[Int], isDeletable: Boolean, deleteKeyOpt: Option[String], usesSecureChar: Boolean)(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[FileId] = {
 
     if(false) {// NOTE: if-false outed
       require(
@@ -62,7 +62,7 @@ class Core(db: Database, fileDbPath: String){
     println(s"idLength: ${idLength}")
 
     // Generate File ID and storeFilePath
-    generateNoDuplicatedFiledIdAndStorePathOpt(idLength) match {
+    generateNoDuplicatedFiledIdAndStorePathOpt(idLength, usesSecureChar) match {
       case Some((fileId, storeFilePath)) => {
         // Adjust duration (big duration is not good)
         val adjustedDuration: FiniteDuration = duration.min(Setting.MaxStoreDuration)
@@ -212,7 +212,7 @@ class Core(db: Database, fileDbPath: String){
                 |
                 |===== Option Example =====
                 |# Send (duration: 30 sec, Download limit: once, ID length: 16, Delete key: 'mykey1234')
-                |wget -q -O - '${urlStr}/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234' --post-file=./test.txt
+                |wget -q -O - '${urlStr}/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234&secure-char' --post-file=./test.txt
                 |
                 |# Delete with delete key
                 |wget --method DELETE '${urlStr}/a3h?delete-key=mykey1234'
@@ -294,7 +294,7 @@ class Core(db: Database, fileDbPath: String){
         withoutSizeLimit {
           extractDataBytes { bytes =>
             // Store bytes to DB
-            val storeFut: Future[FileId] = storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt)
+            val storeFut: Future[FileId] = storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt, getParams.usesSecureChar)
 
             onComplete(storeFut) {
               case Success(fileId) =>
@@ -330,7 +330,7 @@ class Core(db: Database, fileDbPath: String){
               val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
 
               // Store bytes to DB
-              storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt)
+              storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt, getParams.usesSecureChar)
             }
 
             val fileIdsFut: Future[List[FileId]] = fileIdsSource.runFold(List.empty[FileId])((l, s) => l :+ s)
@@ -426,7 +426,7 @@ class Core(db: Database, fileDbPath: String){
     // for routing DSL
     import akka.http.scaladsl.server.Directives._
 
-    parameter("duration".?, "get-times".?, "id-length".?, "deletable".?, "delete-key".?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String]) =>
+    parameter("duration".?, "get-times".?, "id-length".?, "deletable".?, "delete-key".?, "secure-char".?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String], usesSecureCharStrOpt: Option[String]) =>
 
       println(s"durationStrOpt: ${durationStrOpt}")
 
@@ -455,19 +455,29 @@ class Core(db: Database, fileDbPath: String){
       } yield idLength
       println(s"idLengthOpt: ${idLengthOpt}")
 
-      // Generate isDeletable
-      val isDeletable: Boolean = (for {
-        deletableStr <- isDeletableStrOpt
-        b <- deletableStr.toLowerCase match {
-          case "" => Some(true)
-          case "true" => Some(true)
-          case "false" => Some(false)
-          case _ => Some(false)
-        }
-      } yield b)
-        .getOrElse(true) // NOTE: Default isDeletable is true
+      // Convert to Option[String] to Option[Boolean]
+      def convertBoolStrOptBoolOpt(boolStrOpt: Option[String]): Option[Boolean] =
+        for {
+          boolStr <- boolStrOpt
+          b <- boolStr.toLowerCase match {
+            case ""      => Some(true)
+            case "true"  => Some(true)
+            case "false" => Some(false)
+            case _       => Some(false)
+          }
+        } yield b
 
-      f(GetParams(duration=duration, nGetLimitOpt=nGetLimitOpt, idLengthOpt=idLengthOpt, isDeletable=isDeletable, deleteKeyOpt=deleteKeyOpt))
+      // Generate isDeletable
+      val isDeletable: Boolean =
+        convertBoolStrOptBoolOpt(isDeletableStrOpt)
+          .getOrElse(true) // NOTE: Default isDeletable is true
+
+      // Generate usesSecureChar
+      val usesSecureChar: Boolean =
+        convertBoolStrOptBoolOpt(usesSecureCharStrOpt)
+          .getOrElse(false) // NOTE: Default usesSecureChar is false
+
+      f(GetParams(duration=duration, nGetLimitOpt=nGetLimitOpt, idLengthOpt=idLengthOpt, isDeletable=isDeletable, deleteKeyOpt=deleteKeyOpt, usesSecureChar=usesSecureChar))
     }
   }
 
@@ -546,7 +556,7 @@ class Core(db: Database, fileDbPath: String){
     * Generate non-duplicated File ID and store path
     * @return Return FileId
     */
-  def generateNoDuplicatedFiledIdAndStorePathOpt(idLength: Int): Option[(FileId, String)] = synchronized {
+  def generateNoDuplicatedFiledIdAndStorePathOpt(idLength: Int, usesSecureChar: Boolean): Option[(FileId, String)] = synchronized {
     var fileIdStr    : String = null
     var storeFilePath: String = null
     var tryNum       : Int    = 0
@@ -554,7 +564,7 @@ class Core(db: Database, fileDbPath: String){
     // Generate File ID and storeFilePath
     do {
       tryNum    += 1
-      fileIdStr = generateRandomFileId(idLength)
+      fileIdStr = generateRandomFileId(idLength, usesSecureChar)
       storeFilePath = List(fileDbPath, fileIdStr).mkString(File.separator)
       if(tryNum > Setting.FileIdGenTryLimit){
         return None
@@ -570,10 +580,19 @@ class Core(db: Database, fileDbPath: String){
     * Generate random File ID
     * @return Random File ID
     */
-  def generateRandomFileId(idLength: Int): String = {
+  def generateRandomFileId(idLength: Int, usesSecureChar: Boolean): String = {
+
+    // Candidate chars
+    val candidateChars =
+      if(usesSecureChar) {
+        Setting.secureCandidateChars
+      } else {
+        Setting.candidateChars
+      }
+
     val i = (1 to idLength).map{_ =>
-      val idx = secureRandom.nextInt(Setting.candidateChars.length)
-      Setting.candidateChars(idx)
+      val idx = secureRandom.nextInt(candidateChars.length)
+      candidateChars(idx)
     }
     i.mkString
   }
