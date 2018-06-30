@@ -236,6 +236,8 @@ Open `https://trans-akka.herokuapp.com/ab2` on your browser
 
 ## Sending-options
 
+<!-- TODO: Adapt to secure-char -->
+
 Here is options you can use when sending
 
 |GET parameter | default value | decription |

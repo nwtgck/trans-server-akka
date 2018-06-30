@@ -23,6 +23,8 @@ object Setting {
   val FileIdGenTryLimit    : Int             = 500 // NOTE: Simple study shows 500 is enough (https://github.com/nwtgck/random-str-collision-graph-scala)
   // 1 ~ 9 + 'a' ~ 'z' except misunderstandable chars for file ID
   val candidateChars       : IndexedSeq[Char] = (('0' to '9') ++ ('a' to 'z')).diff(Seq('g', '9', 'q', 'l', '1', 'o', '0'))
+  // More secure candidate characters
+  val secureCandidateChars : IndexedSeq[Char] = ('0' to '9') ++ ('a' to 'z') ++ ('A' to 'Z') ++ Seq('-', '_')
 
   // Reserved route name of GET request
   object GetRouteName{

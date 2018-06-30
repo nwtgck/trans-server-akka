@@ -28,6 +28,7 @@ import scala.util.{Failure, Random, Success, Try}
   * @param isDeletable
   * @param deleteKeyOpt
   */
+// TODO: Add `enableSecureChar`
 private [this] case class GetParams(duration     : FiniteDuration,
                                     nGetLimitOpt : Option[Int],
                                     idLengthOpt  : Option[Int],
@@ -42,6 +43,7 @@ class Core(db: Database, fileDbPath: String){
   private val secureRandom: Random = new Random(new java.security.SecureRandom())
 
 
+  // TODO: Adapt to 'secure-char'
   def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int], idLengthOpt: Option[Int], isDeletable: Boolean, deleteKeyOpt: Option[String])(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[FileId] = {
 
     if(false) {// NOTE: if-false outed
@@ -194,6 +196,7 @@ class Core(db: Database, fileDbPath: String){
           // NOTE: uri.authority contains both host and port
           val urlStr: String = s"${uri.scheme}://${uri.authority}"
 
+          // TODO: Update "Option Example" for secure-char
           complete( // TODO Should(?) move text content somewhere
             s"""|Help for trans (${BuildInfo.version})
                 |(Repository: https://github.com/nwtgck/trans-server-akka)
@@ -426,6 +429,7 @@ class Core(db: Database, fileDbPath: String){
     // for routing DSL
     import akka.http.scaladsl.server.Directives._
 
+    // TODO: Add 'secure-char' parameter
     parameter("duration".?, "get-times".?, "id-length".?, "deletable".?, "delete-key".?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String]) =>
 
       println(s"durationStrOpt: ${durationStrOpt}")
