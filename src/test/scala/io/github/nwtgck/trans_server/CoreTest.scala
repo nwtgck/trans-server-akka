@@ -431,11 +431,10 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
         // response should be original
         resContent shouldBe originalContent
       }
-
-      // Some file ID contains some characters which is not contained in regular candidate chars
-      // Because of "secure-char"
-      concatedFileId.toCharArray.exists(c => !Setting.candidateChars.contains(c)) shouldBe true
-
     }
+    
+    // Some file ID contains some characters which is not contained in regular candidate chars
+    // Because of "secure-char"
+    concatedFileId.toCharArray.exists(c => !Setting.candidateChars.contains(c)) shouldBe true
   }
 }
