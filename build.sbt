@@ -2,7 +2,7 @@ import sbtassembly.AssemblyPlugin.autoImport.assemblyJarName
 
 name := "trans-server-akka"
 
-version := "1.12.0"
+version := "1.13.0"
 
 scalaVersion := "2.11.8"
 
