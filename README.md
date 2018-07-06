@@ -2,10 +2,10 @@
 
 Transmit files by using **only common Uninx/Linux commands, `curl` or `wget`**
 
-| branch | Travis status|
-| --- | --- |
-| [`master`](https://github.com/nwtgck/trans-server-akka/tree/master) | [![Build Status](https://travis-ci.org/nwtgck/trans-server-akka.svg?branch=master)](https://travis-ci.org/nwtgck/trans-server-akka) |
-| [`develop`](https://github.com/nwtgck/trans-server-akka/tree/develop) | [![Build Status](https://travis-ci.org/nwtgck/trans-server-akka.svg?branch=develop)](https://travis-ci.org/nwtgck/trans-server-akka) |
+| branch | Travis status| Coverage |
+| --- | --- | --- |
+| [`master`](https://github.com/nwtgck/trans-server-akka/tree/master) | [![Build Status](https://travis-ci.org/nwtgck/trans-server-akka.svg?branch=master)](https://travis-ci.org/nwtgck/trans-server-akka) | [![Coverage Status](https://coveralls.io/repos/github/nwtgck/trans-server-akka/badge.svg?branch=master)](https://coveralls.io/github/nwtgck/trans-server-akka?branch=master) |
+| [`develop`](https://github.com/nwtgck/trans-server-akka/tree/develop) | [![Build Status](https://travis-ci.org/nwtgck/trans-server-akka.svg?branch=develop)](https://travis-ci.org/nwtgck/trans-server-akka) | [![Coverage Status](https://coveralls.io/repos/github/nwtgck/trans-server-akka/badge.svg?branch=develop)](https://coveralls.io/github/nwtgck/trans-server-akka?branch=develop) |
 
 
 ## Send a file by wget
