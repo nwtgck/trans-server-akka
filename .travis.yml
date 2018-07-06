@@ -1,8 +1,10 @@
 language: scala
 
+# (from: https://github.com/scoverage/sbt-coveralls)
 script:
-  - sbt test
-
+  - sbt clean coverage test
+after_success:
+  - sbt coverageReport coveralls
 
 # (from: http://www.scala-sbt.org/1.0/docs/Travis-CI-with-sbt.html)
 before_cache:
