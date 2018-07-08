@@ -1,10 +1,12 @@
 package io.github.nwtgck.trans_server
 
 import java.nio.file.Files
+import java.security.MessageDigest
 
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
+import io.github.nwtgck.trans_server.digest.Algorithm
 import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
 import slick.driver.H2Driver.api._
 
@@ -31,6 +33,13 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     core = new Core(db, fileDbPath = tmpFileDbPath)
   }
 
+  // Calculate digest string
+  def calcDigestString(bytes: Array[Byte], algorithm: Algorithm): String = {
+    val m = MessageDigest.getInstance(algorithm.name)
+    m.update(bytes, 0, bytes.length)
+    m.digest().map("%02x".format(_)).mkString
+  }
+
   test("[positive] send") {
     val fileContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     Post("/").withEntity(fileContent) ~> core.route ~> check {
@@ -39,6 +48,11 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       println(s"fileId: ${fileId}")
       // File ID length should be DefaultIdLength
       fileId.length shouldBe Setting.DefaultIdLength
+
+      // Verify Checksum
+      header(Setting.Md5HttpHeaderName).get.value shouldBe calcDigestString(fileContent.getBytes, Algorithm.MD5)
+      header(Setting.Sha1HttpHeaderName).get.value shouldBe calcDigestString(fileContent.getBytes, Algorithm.`SHA-1`)
+      header(Setting.Sha256HttpHeaderName).get.value shouldBe calcDigestString(fileContent.getBytes, Algorithm.`SHA-256`)
     }
   }
 
@@ -57,6 +71,11 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       val resContent: String = responseAs[String]
       // response should be original
       resContent shouldBe originalContent
+
+      // Verify Checksum
+      header(Setting.Md5HttpHeaderName).get.value shouldBe calcDigestString(originalContent.getBytes, Algorithm.MD5)
+      header(Setting.Sha1HttpHeaderName).get.value shouldBe calcDigestString(originalContent.getBytes, Algorithm.`SHA-1`)
+      header(Setting.Sha256HttpHeaderName).get.value shouldBe calcDigestString(originalContent.getBytes, Algorithm.`SHA-256`)
     }
 
     Get(s"/${fileId}/hoge.txt") ~> core.route ~> check {
@@ -180,11 +199,12 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
   test("[positive] send/get big data") {
 
     // Create random 10MB bytes
-    val originalContent: ByteString = ByteString({
+    val originalBytes: Array[Byte] = {
       val bytes = new Array[Byte](10000000)
       Random.nextBytes(bytes)
       bytes
-    })
+    }
+    val originalContent: ByteString = ByteString(originalBytes)
 
     var fileId: String = null
     Post("/").withEntity(originalContent) ~> core.route ~> check {
@@ -193,6 +213,10 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       println(s"fileId: ${fileId}")
       // File ID length should be 3
       fileId.length shouldBe 3
+      // Verify Checksum
+      header(Setting.Md5HttpHeaderName).get.value shouldBe calcDigestString(originalBytes, Algorithm.MD5)
+      header(Setting.Sha1HttpHeaderName).get.value shouldBe calcDigestString(originalBytes, Algorithm.`SHA-1`)
+      header(Setting.Sha256HttpHeaderName).get.value shouldBe calcDigestString(originalBytes, Algorithm.`SHA-256`)
     }
 
     Get(s"/${fileId}") ~> core.route ~> check {
