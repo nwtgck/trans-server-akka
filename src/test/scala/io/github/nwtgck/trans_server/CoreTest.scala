@@ -71,6 +71,11 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       val resContent: String = responseAs[String]
       // response should be original
       resContent shouldBe originalContent
+
+      // Verify Checksum
+      header(Setting.Md5HttpHeaderName).get.value shouldBe calcDigestString(originalContent.getBytes, Algorithm.MD5)
+      header(Setting.Sha1HttpHeaderName).get.value shouldBe calcDigestString(originalContent.getBytes, Algorithm.`SHA-1`)
+      header(Setting.Sha256HttpHeaderName).get.value shouldBe calcDigestString(originalContent.getBytes, Algorithm.`SHA-256`)
     }
 
     Get(s"/${fileId}/hoge.txt") ~> core.route ~> check {
@@ -192,7 +197,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
 
   test("[positive] send/get big data") {
-    
+
     // Create random 10MB bytes
     val originalBytes: Array[Byte] = {
       val bytes = new Array[Byte](10000000)

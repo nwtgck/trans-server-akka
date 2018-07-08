@@ -302,8 +302,13 @@ class Core(db: Database, fileDbPath: String){
                         // Decompress data
                         .via(Compression.gunzip())
 
-                    complete(HttpEntity(ContentTypes.NoContentType, fileStore.rawLength, source))
-
+                    respondWithHeaders(
+                      headers.RawHeader(Setting.Md5HttpHeaderName, fileStore.md5Digest.value),
+                      headers.RawHeader(Setting.Sha1HttpHeaderName, fileStore.sha1Digest.value),
+                      headers.RawHeader(Setting.Sha256HttpHeaderName, fileStore.sha256Digest.value)
+                    ){
+                      complete(HttpEntity(ContentTypes.NoContentType, fileStore.rawLength, source))
+                    }
                   case _ =>
                     complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
                 }
