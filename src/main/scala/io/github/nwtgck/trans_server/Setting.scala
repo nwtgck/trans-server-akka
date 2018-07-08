@@ -25,6 +25,9 @@ object Setting {
   val candidateChars       : IndexedSeq[Char] = (('0' to '9') ++ ('a' to 'z')).diff(Seq('g', '9', 'q', 'l', '1', 'o', '0'))
   // More secure candidate characters
   val secureCandidateChars : IndexedSeq[Char] = ('0' to '9') ++ ('a' to 'z') ++ ('A' to 'Z') ++ Seq('-', '_')
+  val Md5HttpHeaderName    : String           = "X-FILE-MD5"
+  val Sha1HttpHeaderName   : String           = "X-FILE-SHA1"
+  val Sha256HttpHeaderName : String           = "X-FILE-SHA256"
 
   // Reserved route name of GET request
   object GetRouteName{

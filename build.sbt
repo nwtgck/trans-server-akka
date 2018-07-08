@@ -2,11 +2,11 @@ import sbtassembly.AssemblyPlugin.autoImport.assemblyJarName
 
 name := "trans-server-akka"
 
-version := "1.13.0"
+version := "1.14.0"
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.11.12"
 
-val akkaVersion = "10.0.5"
+val akkaHttpVersion = "10.0.11"
 
 lazy val root = (project in file(".")).
   enablePlugins(BuildInfoPlugin, JavaAppPackaging).
@@ -29,17 +29,17 @@ lazy val root = (project in file(".")).
 
     libraryDependencies ++= Seq(
       // sbt from http://akka.io/docs/
-      "com.typesafe.akka" %% "akka-http-core" % akkaVersion,
-      "com.typesafe.akka" %% "akka-http" % akkaVersion,
-      "com.typesafe.akka" %% "akka-http-testkit" % akkaVersion,
-      "com.typesafe.akka" %% "akka-http-spray-json" % akkaVersion,
-      "com.typesafe.akka" %% "akka-http-jackson" % akkaVersion,
-      "com.typesafe.akka" %% "akka-http-xml" % akkaVersion,
+      "com.typesafe.akka" %% "akka-http-core" % akkaHttpVersion,
+      "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
+      "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion,
+      "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
+      "com.typesafe.akka" %% "akka-http-jackson" % akkaHttpVersion,
+      "com.typesafe.akka" %% "akka-http-xml" % akkaHttpVersion,
 
       // Slick
       "com.typesafe.slick" %% "slick" % "3.1.1",
-      "org.slf4j" % "slf4j-nop" % "1.7.21",
-      "com.h2database" % "h2" % "1.4.191",
+      "org.slf4j" % "slf4j-nop" % "1.7.25",
+      "com.h2database" % "h2" % "1.4.197",
 
       // ScalaTest
       "org.scalatest" %% "scalatest" % "2.2.6" % "test"
