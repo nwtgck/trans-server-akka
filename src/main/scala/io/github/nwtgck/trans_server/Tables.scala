@@ -1,5 +1,6 @@
 package io.github.nwtgck.trans_server
 
+import io.github.nwtgck.trans_server.digest.{Algorithm, Digest}
 import slick.ast.BaseTypedType
 import slick.jdbc.JdbcType
 import slick.jdbc.meta.MTable
@@ -11,6 +12,15 @@ object Tables {
 
   object OriginalTypeImplicits{
     implicit val fileIdType: JdbcType[FileId] with BaseTypedType[FileId] = MappedColumnType.base[FileId, String]({ id => id.value}, { str => FileId(str) })
+
+    implicit val md5DigestType: JdbcType[Digest[Algorithm.`MD5`.type]] with BaseTypedType[Digest[Algorithm.`MD5`.type]] =
+      MappedColumnType.base[Digest[Algorithm.`MD5`.type], String]({ digest: Digest[Algorithm.`MD5`.type] => digest.value}, { str => Digest(str) })
+
+    implicit val sha1DigestType: JdbcType[Digest[Algorithm.`SHA-1`.type]] with BaseTypedType[Digest[Algorithm.`SHA-1`.type]] =
+      MappedColumnType.base[Digest[Algorithm.`SHA-1`.type], String]({ digest: Digest[Algorithm.`SHA-1`.type] => digest.value}, { str => Digest(str) })
+
+    implicit val sha2565DigestType: JdbcType[Digest[Algorithm.`SHA-256`.type]] with BaseTypedType[Digest[Algorithm.`SHA-256`.type]] =
+      MappedColumnType.base[Digest[Algorithm.`SHA-256`.type], String]({ digest: Digest[Algorithm.`SHA-256`.type] => digest.value}, { str => Digest(str) })
   }
   import OriginalTypeImplicits._
 
@@ -49,8 +59,11 @@ object Tables {
     val nGetLimitOpt       = column[Option[Int]]("n_get_limit_opt")
     val isDeletable        = column[Boolean]("is_deletable")
     val hashedDeleteKeyOpt = column[Option[String]]("hashed_delete_key_opt")
+    val md5Digest          = column[Digest[Algorithm.`MD5`.type]]("md5_digest")
+    val sha1Digest         = column[Digest[Algorithm.`SHA-1`.type]]("sha1_digest")
+    val sha256Digest       = column[Digest[Algorithm.`SHA-256`.type]]("sha256_digest")
 
-    override def * = (fileId, storePath, rawLength, createdAt, deadline, nGetLimitOpt, isDeletable, hashedDeleteKeyOpt) <> (FileStore.tupled, FileStore.unapply)
+    override def * = (fileId, storePath, rawLength, createdAt, deadline, nGetLimitOpt, isDeletable, hashedDeleteKeyOpt, md5Digest, sha1Digest, sha256Digest) <> (FileStore.tupled, FileStore.unapply)
   }
 
 

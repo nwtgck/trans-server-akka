@@ -140,7 +140,10 @@ class Core(db: Database, fileDbPath: String){
             deadline           = TimestampUtil.now + adjustedDuration,
             nGetLimitOpt       = nGetLimitOpt,
             isDeletable        = isDeletable,
-            hashedDeleteKeyOpt = hashedDeleteKeyOpt
+            hashedDeleteKeyOpt = hashedDeleteKeyOpt,
+            md5Digest          = md5Digest,
+            sha1Digest         = sha1Digest,
+            sha256Digest       = sha256Digest
           )
           // Store to the database
           // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
