@@ -7,7 +7,7 @@ import javax.crypto.Cipher
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import akka.http.scaladsl.model.headers
-import akka.http.scaladsl.model.headers.HttpOrigin
+import akka.http.scaladsl.model.headers.{HttpOrigin, RawHeader}
 import akka.http.scaladsl.server.{Directive0, Route}
 import akka.stream.scaladsl.{Broadcast, Compression, FileIO, Flow, GraphDSL, Keep, RunnableGraph, Sink, Source}
 import akka.stream.{ActorMaterializer, ClosedShape, IOResult}
@@ -43,7 +43,7 @@ class Core(db: Database, fileDbPath: String){
   // (from: https://qiita.com/suin/items/bfff121c8481990e1507)
   private val secureRandom: Random = new Random(new java.security.SecureRandom())
 
-  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int], idLengthOpt: Option[Int], isDeletable: Boolean, deleteKeyOpt: Option[String], usesSecureChar: Boolean)(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[FileId] = {
+  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int], idLengthOpt: Option[Int], isDeletable: Boolean, deleteKeyOpt: Option[String], usesSecureChar: Boolean)(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[(FileId, Digest[Algorithm.`MD5`.type], Digest[Algorithm.`SHA-1`.type], Digest[Algorithm.`SHA-256`.type])] = {
 
     if(false) {// NOTE: if-false outed
       require(
@@ -153,7 +153,7 @@ class Core(db: Database, fileDbPath: String){
             println(s"sha1Digest: ${sha1Digest}")
             println(s"sha256Digest: ${sha256Digest}")
           }
-        } yield fileId
+        } yield (fileId, md5Digest, sha1Digest, sha256Digest)
       }
       case _ =>
         Future.failed(
@@ -322,11 +322,18 @@ class Core(db: Database, fileDbPath: String){
         withoutSizeLimit {
           extractDataBytes { bytes =>
             // Store bytes to DB
-            val storeFut: Future[FileId] = storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt, getParams.usesSecureChar)
+            val storeFut: Future[(FileId, Digest[Algorithm.`MD5`.type], Digest[Algorithm.`SHA-1`.type], Digest[Algorithm.`SHA-256`.type])] =
+              storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt, getParams.usesSecureChar)
 
             onComplete(storeFut) {
-              case Success(fileId) =>
-                complete(s"${fileId.value}\n")
+              case Success((fileId, md5Digest, sha1Digest, sha256Digest)) =>
+                respondWithHeaders(
+                  headers.RawHeader(Setting.Md5HttpHeaderName, md5Digest.value),
+                  headers.RawHeader(Setting.Sha1HttpHeaderName, sha1Digest.value),
+                  headers.RawHeader(Setting.Sha256HttpHeaderName, sha256Digest.value)
+                ){
+                  complete(s"${fileId.value}\n")
+                }
               case Failure(e) =>
                 println(e)
                 e match {
@@ -359,6 +366,7 @@ class Core(db: Database, fileDbPath: String){
 
               // Store bytes to DB
               storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt, getParams.usesSecureChar)
+                .map(_._1)
             }
 
             val fileIdsFut: Future[List[FileId]] = fileIdsSource.runFold(List.empty[FileId])((l, s) => l :+ s)
