@@ -9,10 +9,11 @@ import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCode
 import akka.http.scaladsl.model.headers
 import akka.http.scaladsl.model.headers.HttpOrigin
 import akka.http.scaladsl.server.{Directive0, Route}
-import akka.stream.scaladsl.{Broadcast, Compression, FileIO, GraphDSL, RunnableGraph, Sink, Source}
+import akka.stream.scaladsl.{Broadcast, Compression, FileIO, Flow, GraphDSL, Keep, RunnableGraph, Sink, Source}
 import akka.stream.{ActorMaterializer, ClosedShape, IOResult}
 import akka.util.ByteString
 import io.github.nwtgck.trans_server.Tables.OriginalTypeImplicits._
+import io.github.nwtgck.trans_server.digest.{Algorithm, Digest, DigestCalculator}
 import slick.driver.H2Driver.api._
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -79,7 +80,7 @@ class Core(db: Database, fileDbPath: String){
 
 
         // Create a file-store graph
-        val storeGraph: RunnableGraph[Future[(IOResult, Long)]] = {
+        val storeGraph: RunnableGraph[Future[(IOResult, Long, Digest[Algorithm.`MD5`.type], Digest[Algorithm.`SHA-1`.type], Digest[Algorithm.`SHA-256`.type])]] = {
 
           // Store file
           val fileStoreSink: Sink[ByteString, Future[IOResult]] =
@@ -89,14 +90,38 @@ class Core(db: Database, fileDbPath: String){
           val lengthSink   : Sink[ByteString, Future[Long]] =
             Sink.fold(0l)(_ + _.length)
 
-          RunnableGraph.fromGraph(GraphDSL.create(fileStoreSink, lengthSink)(_.zip(_)){implicit builder => (fileStoreSink, lengthSink) =>
+          // Sink for calculating MD5
+          val md5Sink: Sink[ByteString, Future[Digest[Algorithm.`MD5`.type]]] =
+            Flow.fromGraph(new DigestCalculator(Algorithm.`MD5`)).toMat(Sink.head)(Keep.right)
+
+          // Sink for calculating SHA-1
+          val sha1Sink: Sink[ByteString, Future[Digest[Algorithm.`SHA-1`.type]]] =
+            Flow.fromGraph(new DigestCalculator(Algorithm.`SHA-1`)).toMat(Sink.head)(Keep.right)
+
+          // Sink for calculating SHA-256
+          val sha256Sink: Sink[ByteString, Future[Digest[Algorithm.`SHA-256`.type]]] =
+            Flow.fromGraph(new DigestCalculator(Algorithm.`SHA-256`)).toMat(Sink.head)(Keep.right)
+
+          // Zip 5 futures
+          def futureZip5[A, B, C, D, E](aFut: Future[A], bFut: Future[B], cFut: Future[C], dFut: Future[D], eFut: Future[E]): Future[(A, B, C, D, E)] =
+            aFut.zip(bFut).zip(cFut).zip(dFut).zip(eFut).map{case ((((a, b), c), d), e) => (a, b, c, d, e)}
+
+          RunnableGraph.fromGraph(GraphDSL.create(fileStoreSink, lengthSink, md5Sink, sha1Sink, sha256Sink)(futureZip5){implicit builder =>
+            (fileStoreSink, lengthSink, md5Sink, sha1Sink, sha256Sink) =>
+
             import GraphDSL.Implicits._
-            val bcast = builder.add(Broadcast[ByteString](2))
+            val bcast = builder.add(Broadcast[ByteString](5))
 
             // * compress ~> encrypt ~> store
             // * calc length
+            // * calc MD5
+            // * calc SHA-1
+            // * calc SHA-256
             byteSource ~> bcast ~> Compression.gzip ~> CipherFlow.flow(genEncryptCipher()) ~> fileStoreSink
                           bcast ~> lengthSink
+                          bcast ~> md5Sink
+                          bcast ~> sha1Sink
+                          bcast ~> sha256Sink
             ClosedShape
           })
         }
@@ -104,7 +129,7 @@ class Core(db: Database, fileDbPath: String){
 
         for {
           // Store a file and get content length
-          (ioResult, rawLength) <- storeGraph.run()
+          (ioResult, rawLength, md5Digest, sha1Digest, sha256Digest) <- storeGraph.run()
 
           // Create file store object
           fileStore = FileStore(
@@ -124,6 +149,9 @@ class Core(db: Database, fileDbPath: String){
           _ <- Future.successful {
             println(s"IOResult: ${ioResult}")
             println(s"rawLength: ${rawLength}")
+            println(s"md5Digest: ${md5Digest}")
+            println(s"sha1Digest: ${sha1Digest}")
+            println(s"sha256Digest: ${sha256Digest}")
           }
         } yield fileId
       }
