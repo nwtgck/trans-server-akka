@@ -8,7 +8,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.util.ByteString
 import io.github.nwtgck.trans_server.digest.Algorithm
-import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
+import org.scalatest.{BeforeAndAfter, FunSuite, Matchers, PrivateMethodTester}
 import slick.driver.H2Driver.api._
 
 import scala.concurrent.Await
@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 import scala.util.Random
 
 
-class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with BeforeAndAfter {
+class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with BeforeAndAfter with PrivateMethodTester{
 
 
   var db  : Database = _
@@ -43,6 +43,19 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     val m = MessageDigest.getInstance(algorithm.name)
     m.update(bytes, 0, bytes.length)
     m.digest().map("%02x".format(_)).mkString
+  }
+
+  test("strToDurationSecOpt") {
+    val strToDurationSecOpt = PrivateMethod[Option[Int]]('strToDurationSecOpt)
+
+    core invokePrivate strToDurationSecOpt("1s")   shouldBe Some(1)
+    core invokePrivate strToDurationSecOpt("57s")  shouldBe Some(57)
+    core invokePrivate strToDurationSecOpt("2m")   shouldBe Some(120)
+    core invokePrivate strToDurationSecOpt("3h")   shouldBe Some(10800)
+    core invokePrivate strToDurationSecOpt("5d")   shouldBe Some(432000)
+    core invokePrivate strToDurationSecOpt("Xs")   shouldBe None
+    core invokePrivate strToDurationSecOpt("Ym")   shouldBe None
+    core invokePrivate strToDurationSecOpt("hoge") shouldBe None
   }
 
   test("[positive] help page") {
