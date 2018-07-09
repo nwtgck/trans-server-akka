@@ -3,15 +3,16 @@ package io.github.nwtgck.trans_server
 import java.nio.file.Files
 import java.security.MessageDigest
 
+import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.util.ByteString
 import io.github.nwtgck.trans_server.digest.Algorithm
 import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
 import slick.driver.H2Driver.api._
 
 import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.util.Random
 
 
@@ -20,6 +21,10 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   var db  : Database = _
   var core: Core     = _
+
+  // Set default timeout
+  // (from: https://stackoverflow.com/a/39669891/2885946)
+  implicit def defaultTimeout(implicit system: ActorSystem): RouteTestTimeout = RouteTestTimeout(5.second)
 
   before {
     // Create a memory-base db
