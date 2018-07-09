@@ -13,14 +13,14 @@ object Tables {
   object OriginalTypeImplicits{
     implicit val fileIdType: JdbcType[FileId] with BaseTypedType[FileId] = MappedColumnType.base[FileId, String]({ id => id.value}, { str => FileId(str) })
 
-    implicit val md5DigestType: JdbcType[Digest[Algorithm.`MD5`.type]] with BaseTypedType[Digest[Algorithm.`MD5`.type]] =
-      MappedColumnType.base[Digest[Algorithm.`MD5`.type], String]({ digest: Digest[Algorithm.`MD5`.type] => digest.value}, { str => Digest(str) })
-
-    implicit val sha1DigestType: JdbcType[Digest[Algorithm.`SHA-1`.type]] with BaseTypedType[Digest[Algorithm.`SHA-1`.type]] =
-      MappedColumnType.base[Digest[Algorithm.`SHA-1`.type], String]({ digest: Digest[Algorithm.`SHA-1`.type] => digest.value}, { str => Digest(str) })
-
-    implicit val sha2565DigestType: JdbcType[Digest[Algorithm.`SHA-256`.type]] with BaseTypedType[Digest[Algorithm.`SHA-256`.type]] =
-      MappedColumnType.base[Digest[Algorithm.`SHA-256`.type], String]({ digest: Digest[Algorithm.`SHA-256`.type] => digest.value}, { str => Digest(str) })
+    // Digest type
+    private type DigestType[Alg <: Algorithm] = JdbcType[Digest[Alg]] with BaseTypedType[Digest[Alg]]
+    // Generator for digest types
+    private def generateDigestType[Alg <: Algorithm](): DigestType[Alg] =
+      MappedColumnType.base[Digest[Alg], String]({ digest: Digest[Alg] => digest.value}, { str => Digest(str) })
+    implicit val md5DigestType    : DigestType[Algorithm.`MD5`.type]     = generateDigestType()
+    implicit val sha1DigestType   : DigestType[Algorithm.`SHA-1`.type]   = generateDigestType()
+    implicit val sha2565DigestType: DigestType[Algorithm.`SHA-256`.type] = generateDigestType()
   }
   import OriginalTypeImplicits._
 
