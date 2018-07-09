@@ -45,6 +45,21 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     m.digest().map("%02x".format(_)).mkString
   }
 
+  test("[positive] help page") {
+    Get(s"/help") ~> core.route ~> check {
+      // Just check status code
+      status.intValue() shouldBe 200
+    }
+  }
+
+  test("[positive] version page") {
+    Get(s"/version") ~> core.route ~> check {
+      val versionStr: String = responseAs[String].trim
+      // Check version page
+      versionStr shouldBe BuildInfo.version
+    }
+  }
+
   test("[positive] send") {
     val fileContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     Post("/").withEntity(fileContent) ~> core.route ~> check {
