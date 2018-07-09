@@ -148,7 +148,6 @@ class Core(db: Database, fileDbPath: String){
           // Store to the database
           // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
           _          <- db.run(Tables.allFileStores += fileStore)
-          fileStores <- db.run(Tables.allFileStores.result)
           _ <- Future.successful {
             println(s"IOResult: ${ioResult}")
             println(s"rawLength: ${rawLength}")
