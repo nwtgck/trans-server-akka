@@ -598,6 +598,37 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
   }
 
+  test("[positive] send/delete with Basic Authentication") {
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+    var fileId: String = null
+
+    val getKey: String = "p4ssw0rd"
+
+    val credentials1 = BasicHttpCredentials("dummy user", getKey)
+    Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
+      // Get file ID
+      fileId = responseAs[String].trim
+      println(s"fileId: ${fileId}")
+      // File ID length should be 3
+      fileId.length shouldBe 3
+    }
+
+    // NOTE: Basic Authentication doesn't related to deletion
+    //       related to get file only
+
+    // Delete the file
+    Delete(s"/${fileId}") ~> core.route ~> check {
+      // Status should be OK
+      response.status shouldBe StatusCodes.OK
+    }
+
+    // Fail to get because of deletion
+    Get(s"/${fileId}") ~> core.route ~> check {
+      // The status should be 404
+      response.status shouldBe StatusCodes.NotFound
+    }
+  }
+
   test("[positive] send/get with secure-char") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
