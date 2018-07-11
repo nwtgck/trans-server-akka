@@ -2,7 +2,10 @@ package io.github.nwtgck.trans_server
 
 import java.io.{FileInputStream, InputStream}
 import java.security.{KeyStore, SecureRandom}
+import java.util.Base64
 
+import akka.http.scaladsl.server.Directives.extractRequest
+import akka.http.scaladsl.server.{Directive, Directive1}
 import akka.http.scaladsl.{ConnectionContext, HttpsConnectionContext}
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 
@@ -65,5 +68,39 @@ object Util {
     val httpsConnectionContext: HttpsConnectionContext = ConnectionContext.https(sslContext)
 
     httpsConnectionContext
+  }
+
+  // Extract user name and password in Basic Authentication if exist
+  // NOTE: Should use `def`? Why not `val`?
+  // (from: https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/custom-directives.html)
+  def extractBasicAuthUserAndPasswordOpt: Directive1[Option[(String, String)]] = Directive[Tuple1[Option[(String, String)]]]{ f =>
+    extractRequest{request =>
+      request.headers.find(_.name == "Authorization") match {
+        // "Authorization" header is found
+        case Some(basicAuthHeader) =>
+          // Regexp for Basic Authentication
+          val regexp = """Basic (.*)""".r
+          basicAuthHeader.value() match {
+            // Match "Basic ..."
+            case regexp(userAndPasswdBase64) =>
+              // Decode basic64
+              val decodedStr = new String(Base64.getDecoder().decode(userAndPasswdBase64))
+              // Split by ":"
+              decodedStr.split(":") match {
+                // Format is correct
+                case Array(user, password) =>
+                  f(Tuple1(Some((user, password))))
+                case _ =>
+                  f(Tuple1(None))
+              }
+            // Not match "Basic ..."
+            case _ =>
+              f(Tuple1(None))
+          }
+        // "Authorization" header is not found
+        case None =>
+          f(Tuple1(None))
+      }
+    }
   }
 }
