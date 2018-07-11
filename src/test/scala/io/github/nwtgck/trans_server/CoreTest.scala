@@ -197,6 +197,39 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
   }
 
+  test("[positive] send/get by multipart with Basic Authentication") {
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+    // (from: https://blog.knoldus.com/2016/06/01/a-basic-application-to-handle-multipart-form-data-using-akka-http-with-test-cases-in-scala/)
+    val fileData = Multipart.FormData.BodyPart.Strict("dummy_name", HttpEntity(ContentTypes.`text/plain(UTF-8)`, originalContent))
+    val formData = Multipart.FormData(fileData)
+
+    val credentials1 = BasicHttpCredentials("dummy user", "p4ssw0rd")
+
+    var fileId: String = null
+    Post("/multipart", formData) ~> addCredentials(credentials1) ~> core.route ~> check {
+      // Get file ID
+      fileId = responseAs[String].trim
+      println(s"fileId: ${fileId}")
+      // File ID length should be 3
+      fileId.length shouldBe 3
+    }
+
+    // Get the file without user and password
+    // (from: https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/security-directives/authenticateBasic.html)
+    Get(s"/${fileId}") ~> core.route ~> check {
+      status shouldEqual StatusCodes.Unauthorized
+      header[`WWW-Authenticate`].get.challenges.head shouldEqual HttpChallenge("Basic", Some(""), Map("charset" → "UTF-8"))
+    }
+
+    // Get the file with user and password
+    Get(s"/${fileId}") ~> addCredentials(credentials1) ~>  core.route ~> check {
+      val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe originalContent
+    }
+  }
+
   test("[positive] send/get by PUT") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     var fileId: String = null
