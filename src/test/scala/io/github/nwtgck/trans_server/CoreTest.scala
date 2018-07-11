@@ -5,6 +5,7 @@ import java.security.MessageDigest
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.{BasicHttpCredentials, HttpChallenge, `WWW-Authenticate`}
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.util.ByteString
 import io.github.nwtgck.trans_server.digest.Algorithm
@@ -256,6 +257,67 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       val resContent: ByteString = responseAs[ByteString]
       // response should be original
       resContent shouldBe originalContent
+    }
+  }
+
+  test("[positive] send/get with Basic Authentication") {
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+    var fileId: String = null
+
+    val getKey: String = "p4ssw0rd"
+
+    val credentials1 = BasicHttpCredentials("dummy user", getKey)
+    Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
+      // Get file ID
+      fileId = responseAs[String].trim
+      println(s"fileId: ${fileId}")
+      // File ID length should be 3
+      fileId.length shouldBe 3
+    }
+
+    // Get the file without user and password
+    // (from: https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/security-directives/authenticateBasic.html)
+    Get(s"/${fileId}") ~> core.route ~> check {
+      status shouldEqual StatusCodes.Unauthorized
+      header[`WWW-Authenticate`].get.challenges.head shouldEqual HttpChallenge("Basic", Some(""), Map("charset" → "UTF-8"))
+    }
+
+    // Get the file with user and password
+    Get(s"/${fileId}") ~> addCredentials(credentials1) ~>  core.route ~> check {
+      val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe originalContent
+    }
+
+    // Get the file with different user and password
+    // NOTE: User name should be ignored
+    val credentials2 = BasicHttpCredentials("hoge hoge user", getKey)
+    Get(s"/${fileId}") ~> addCredentials(credentials2) ~>  core.route ~> check {
+      val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe originalContent
+    }
+  }
+
+  test("[negative] send/get with Basic Authentication") {
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+    var fileId: String = null
+
+    val getKey: String = "p4ssw0rd"
+
+    val credentials1 = BasicHttpCredentials("dummy user", getKey)
+    Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
+      // Get file ID
+      fileId = responseAs[String].trim
+      println(s"fileId: ${fileId}")
+      // File ID length should be 3
+      fileId.length shouldBe 3
+    }
+
+    // Get the file with user and WRONG password
+    Get(s"/${fileId}") ~> addCredentials(credentials1.copy(password = "this is wrong password!")) ~>  core.route ~> check {
+      status shouldEqual StatusCodes.Unauthorized
+      header[`WWW-Authenticate`].get.challenges.head shouldEqual HttpChallenge("Basic", Some(""), Map("charset" → "UTF-8"))
     }
   }
 
@@ -561,7 +623,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
         resContent shouldBe originalContent
       }
     }
-    
+
     // Some file ID contains some characters which is not contained in regular candidate chars
     // Because of "secure-char"
     concatedFileId.toCharArray.exists(c => !Setting.candidateChars.contains(c)) shouldBe true

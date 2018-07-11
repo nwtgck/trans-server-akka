@@ -3,6 +3,7 @@ package io.github.nwtgck.trans_server
 import java.io.File
 import java.nio.file.StandardOpenOption
 
+import akka.actor.ActorSystem
 import javax.crypto.Cipher
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
@@ -218,6 +219,9 @@ class Core(db: Database, fileDbPath: String){
     // for Futures
     import concurrent.ExecutionContext.Implicits.global
 
+    // For Route.seal
+    implicit val system: ActorSystem = materializer.system
+
     get {
       // "Get /" for confirming whether the server is running
       pathSingleSlash {
@@ -327,9 +331,14 @@ class Core(db: Database, fileDbPath: String){
                                 case p @ Credentials.Provided(id) if p.verify(getKey, k => Util.generateHashedKey1(k, Setting.KeySalt)) => Some(())
                                 case _ => None
                               }
-                            // Basic authentication
-                            authenticateBasic(realm = "", authenticator = getKeyAuthenticator){ _ =>
-                              fileResponse
+
+                            // (from: https://github.com/spray/spray/issues/1131)
+                            // (from: https://github.com/akka/akka-http/pull/412)
+                            Route.seal {
+                              // Basic authentication
+                              authenticateBasic(realm = "", authenticator = getKeyAuthenticator) { _ =>
+                                fileResponse
+                              }
                             }
                           // Not have get-key
                           case None =>
