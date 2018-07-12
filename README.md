@@ -52,7 +52,8 @@ wget -q -O - --method DELETE https://trans-akka.herokuapp.com/a7h
 
 * Send/Get by **only common commands**, `curl` or `wget`
 * Send/Get **on your browser**
-* Send/Get with some limitations
+* Send/Get with restrictions
+  - download key
   - store duration
   - how many times you can download
 * Delete files you sent
@@ -282,6 +283,25 @@ All bellow are valid usages.
 ```bash
 'https://trans-akka.herokuapp.com/?deletable=false'
 ```
+
+### Set download key
+
+```bash
+curl -u dummy_user:mypass123 -T ./hello.txt  https://trans-akka.herokuapp.com
+```
+
+When you don't want to type key in command, you can use `-u dummy_user` instead of `-u dummy_user:mypass123`. Then, `curl` provide you a password prompt.
+
+NOTE: `dummy_user` can be change any name including empty `''`.
+
+
+### Get with download key
+
+```bash
+curl -u dummy_user:mypass123 https://trans-akka.herokuapp.com/yk2
+```
+
+NOTE: The server doesn't check user name. So, you can use any name for user name, not only `"dummy_user"`.
 
 
 ## Delete file
