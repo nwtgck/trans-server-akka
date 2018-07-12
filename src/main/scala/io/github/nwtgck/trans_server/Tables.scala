@@ -13,14 +13,14 @@ object Tables {
   object OriginalTypeImplicits{
     implicit val fileIdType: JdbcType[FileId] with BaseTypedType[FileId] = MappedColumnType.base[FileId, String]({ id => id.value}, { str => FileId(str) })
 
-    implicit val md5DigestType: JdbcType[Digest[Algorithm.`MD5`.type]] with BaseTypedType[Digest[Algorithm.`MD5`.type]] =
-      MappedColumnType.base[Digest[Algorithm.`MD5`.type], String]({ digest: Digest[Algorithm.`MD5`.type] => digest.value}, { str => Digest(str) })
-
-    implicit val sha1DigestType: JdbcType[Digest[Algorithm.`SHA-1`.type]] with BaseTypedType[Digest[Algorithm.`SHA-1`.type]] =
-      MappedColumnType.base[Digest[Algorithm.`SHA-1`.type], String]({ digest: Digest[Algorithm.`SHA-1`.type] => digest.value}, { str => Digest(str) })
-
-    implicit val sha2565DigestType: JdbcType[Digest[Algorithm.`SHA-256`.type]] with BaseTypedType[Digest[Algorithm.`SHA-256`.type]] =
-      MappedColumnType.base[Digest[Algorithm.`SHA-256`.type], String]({ digest: Digest[Algorithm.`SHA-256`.type] => digest.value}, { str => Digest(str) })
+    // Digest type
+    private type DigestType[Alg <: Algorithm] = JdbcType[Digest[Alg]] with BaseTypedType[Digest[Alg]]
+    // Generator for digest types
+    private def generateDigestType[Alg <: Algorithm](): DigestType[Alg] =
+      MappedColumnType.base[Digest[Alg], String]({ digest: Digest[Alg] => digest.value}, { str => Digest(str) })
+    implicit val md5DigestType    : DigestType[Algorithm.`MD5`.type]     = generateDigestType()
+    implicit val sha1DigestType   : DigestType[Algorithm.`SHA-1`.type]   = generateDigestType()
+    implicit val sha2565DigestType: DigestType[Algorithm.`SHA-256`.type] = generateDigestType()
   }
   import OriginalTypeImplicits._
 
@@ -56,6 +56,7 @@ object Tables {
     val rawLength          = column[Long]("raw_length")
     val createdAt          = column[java.sql.Timestamp]("created_at")
     val deadline           = column[java.sql.Timestamp]("deadline")
+    val hashedGetKeyOpt    = column[Option[String]]("hashed_get_key_opt")
     val nGetLimitOpt       = column[Option[Int]]("n_get_limit_opt")
     val isDeletable        = column[Boolean]("is_deletable")
     val hashedDeleteKeyOpt = column[Option[String]]("hashed_delete_key_opt")
@@ -63,7 +64,7 @@ object Tables {
     val sha1Digest         = column[Digest[Algorithm.`SHA-1`.type]]("sha1_digest")
     val sha256Digest       = column[Digest[Algorithm.`SHA-256`.type]]("sha256_digest")
 
-    override def * = (fileId, storePath, rawLength, createdAt, deadline, nGetLimitOpt, isDeletable, hashedDeleteKeyOpt, md5Digest, sha1Digest, sha256Digest) <> (FileStore.tupled, FileStore.unapply)
+    override def * = (fileId, storePath, rawLength, createdAt, deadline, hashedGetKeyOpt, nGetLimitOpt, isDeletable, hashedDeleteKeyOpt, md5Digest, sha1Digest, sha256Digest) <> (FileStore.tupled, FileStore.unapply)
   }
 
 

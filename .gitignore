@@ -4,3 +4,4 @@
 /target
 /db
 *.keystore
+!/src/test/resources/trans.keystore

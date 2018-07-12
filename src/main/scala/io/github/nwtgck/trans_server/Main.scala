@@ -1,11 +1,9 @@
 package io.github.nwtgck.trans_server
 
-import java.io.{File, FileInputStream, InputStream}
-import java.security.{KeyStore, SecureRandom}
-import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
+import java.io.File
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.{ConnectionContext, Http, HttpsConnectionContext}
+import akka.http.scaladsl.{Http, HttpsConnectionContext}
 import akka.stream.ActorMaterializer
 import slick.driver.H2Driver.api._
 
@@ -74,7 +72,10 @@ object Main {
       _ <- {
         if(new File(Setting.KEY_STORE_PATH).exists()) {
           // Generate a HttpsConnectionContext
-          val httpsConnectionContext: HttpsConnectionContext = generateHttpsConnectionContext()
+          val httpsConnectionContext: HttpsConnectionContext = Util.generateHttpsConnectionContext(
+            Setting.KEY_STORE_PASSWORD,
+            Setting.KEY_STORE_PATH
+          )
           // Run the HTTPS server
           Http().bindAndHandle(core.route, HOST, httpsPort, connectionContext = httpsConnectionContext)
         } else {
@@ -86,36 +87,4 @@ object Main {
     } yield ()
   }
 
-
-
-  /**
-    * Generate a HttpsConnectionContext
-    *
-    * hint from: http://doc.akka.io/docs/akka-http/current/scala/http/server-side-https-support.html
-    * @return
-    */
-  def generateHttpsConnectionContext(): HttpsConnectionContext = {
-    import Setting._
-
-    // Manual HTTPS configuration
-    val password: Array[Char] = KEY_STORE_PASSWORD.toCharArray // do not store passwords in code, read them from somewhere safe!
-
-    val ks: KeyStore = KeyStore.getInstance("jks")
-    val keystore: InputStream = new FileInputStream(KEY_STORE_PATH)
-
-    require(keystore != null, "Keystore required!")
-    ks.load(keystore, password)
-
-    val keyManagerFactory: KeyManagerFactory = KeyManagerFactory.getInstance("SunX509")
-    keyManagerFactory.init(ks, password)
-
-    val tmf: TrustManagerFactory = TrustManagerFactory.getInstance("SunX509")
-    tmf.init(ks)
-
-    val sslContext: SSLContext = SSLContext.getInstance("TLS")
-    sslContext.init(keyManagerFactory.getKeyManagers, tmf.getTrustManagers, new SecureRandom)
-    val httpsConnectionContext: HttpsConnectionContext = ConnectionContext.https(sslContext)
-
-    httpsConnectionContext
-  }
 }

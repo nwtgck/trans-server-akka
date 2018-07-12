@@ -3,11 +3,13 @@ package io.github.nwtgck.trans_server
 import java.io.File
 import java.nio.file.StandardOpenOption
 
+import akka.actor.ActorSystem
 import javax.crypto.Cipher
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import akka.http.scaladsl.model.headers
 import akka.http.scaladsl.model.headers.{HttpOrigin, RawHeader}
+import akka.http.scaladsl.server.directives.Credentials
 import akka.http.scaladsl.server.{Directive0, Route}
 import akka.stream.scaladsl.{Broadcast, Compression, FileIO, Flow, GraphDSL, Keep, RunnableGraph, Sink, Source}
 import akka.stream.{ActorMaterializer, ClosedShape, IOResult}
@@ -22,19 +24,22 @@ import scala.util.{Failure, Random, Success, Try}
 
 
 /**
-  * Available GET parameters
+  * Available parameters
   * @param duration
   * @param nGetLimitOpt
   * @param idLengthOpt
   * @param isDeletable
   * @param deleteKeyOpt
+  * @param usesSecureChar
+  * @param getKeyOpt
   */
-private [this] case class GetParams(duration       : FiniteDuration,
-                                    nGetLimitOpt   : Option[Int],
-                                    idLengthOpt    : Option[Int],
-                                    isDeletable    : Boolean,
-                                    deleteKeyOpt   : Option[String],
-                                    usesSecureChar : Boolean)
+private [this] case class Params(duration       : FiniteDuration,
+                                 nGetLimitOpt   : Option[Int],
+                                 idLengthOpt    : Option[Int],
+                                 isDeletable    : Boolean,
+                                 deleteKeyOpt   : Option[String],
+                                 usesSecureChar : Boolean,
+                                 getKeyOpt      : Option[String])
 
 class Core(db: Database, fileDbPath: String){
 
@@ -43,7 +48,7 @@ class Core(db: Database, fileDbPath: String){
   // (from: https://qiita.com/suin/items/bfff121c8481990e1507)
   private val secureRandom: Random = new Random(new java.security.SecureRandom())
 
-  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, nGetLimitOpt: Option[Int], idLengthOpt: Option[Int], isDeletable: Boolean, deleteKeyOpt: Option[String], usesSecureChar: Boolean)(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[(FileId, Digest[Algorithm.`MD5`.type], Digest[Algorithm.`SHA-1`.type], Digest[Algorithm.`SHA-256`.type])] = {
+  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, getKeyOpt: Option[String], nGetLimitOpt: Option[Int], idLengthOpt: Option[Int], isDeletable: Boolean, deleteKeyOpt: Option[String], usesSecureChar: Boolean)(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[(FileId, Digest[Algorithm.`MD5`.type], Digest[Algorithm.`SHA-1`.type], Digest[Algorithm.`SHA-256`.type])] = {
 
     if(false) {// NOTE: if-false outed
       require(
@@ -70,6 +75,10 @@ class Core(db: Database, fileDbPath: String){
         println(s"adjustedDuration: ${adjustedDuration}")
 
         println(s"isDeletable: ${isDeletable}")
+
+        // Generate hashed get-key
+        val hashedGetKeyOpt: Option[String] =
+          getKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
 
         // Generate hashed delete key
         val hashedDeleteKeyOpt: Option[String] =
@@ -138,6 +147,7 @@ class Core(db: Database, fileDbPath: String){
             rawLength          = rawLength,
             createdAt          = TimestampUtil.now(),
             deadline           = TimestampUtil.now + adjustedDuration,
+            hashedGetKeyOpt    = hashedGetKeyOpt,
             nGetLimitOpt       = nGetLimitOpt,
             isDeletable        = isDeletable,
             hashedDeleteKeyOpt = hashedDeleteKeyOpt,
@@ -148,7 +158,6 @@ class Core(db: Database, fileDbPath: String){
           // Store to the database
           // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
           _          <- db.run(Tables.allFileStores += fileStore)
-          fileStores <- db.run(Tables.allFileStores.result)
           _ <- Future.successful {
             println(s"IOResult: ${ioResult}")
             println(s"rawLength: ${rawLength}")
@@ -209,6 +218,9 @@ class Core(db: Database, fileDbPath: String){
     // for using settings
     // for Futures
     import concurrent.ExecutionContext.Implicits.global
+
+    // For Route.seal
+    implicit val system: ActorSystem = materializer.system
 
     get {
       // "Get /" for confirming whether the server is running
@@ -302,13 +314,39 @@ class Core(db: Database, fileDbPath: String){
                         // Decompress data
                         .via(Compression.gunzip())
 
-                    respondWithHeaders(
-                      headers.RawHeader(Setting.Md5HttpHeaderName, fileStore.md5Digest.value),
-                      headers.RawHeader(Setting.Sha1HttpHeaderName, fileStore.sha1Digest.value),
-                      headers.RawHeader(Setting.Sha256HttpHeaderName, fileStore.sha256Digest.value)
-                    ){
-                      complete(HttpEntity(ContentTypes.NoContentType, fileStore.rawLength, source))
-                    }
+                      respondWithHeaders(
+                        headers.RawHeader(Setting.Md5HttpHeaderName, fileStore.md5Digest.value),
+                        headers.RawHeader(Setting.Sha1HttpHeaderName, fileStore.sha1Digest.value),
+                        headers.RawHeader(Setting.Sha256HttpHeaderName, fileStore.sha256Digest.value)
+                      ){
+                        // File response
+                        val fileResponse = complete(HttpEntity(ContentTypes.NoContentType, fileStore.rawLength, source))
+
+                        fileStore.hashedGetKeyOpt match {
+                          // Has get-key
+                          case Some(getKey) =>
+                            // Authenticator for get-key
+                            def getKeyAuthenticator(credentials: Credentials): Option[Unit] =
+                              credentials match {
+                                case p @ Credentials.Provided(id) if p.verify(getKey, k => Util.generateHashedKey1(k, Setting.KeySalt)) => Some(())
+                                case _ => None
+                              }
+
+                            // (from: https://github.com/spray/spray/issues/1131)
+                            // (from: https://github.com/akka/akka-http/pull/412)
+                            Route.seal {
+                              // Basic authentication
+                              authenticateBasic(realm = "", authenticator = getKeyAuthenticator) { _ =>
+                                fileResponse
+                              }
+                            }
+                          // Not have get-key
+                          case None =>
+                            // Just response
+                            fileResponse
+                        }
+                      }
+
                   case _ =>
                     complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
                 }
@@ -324,14 +362,14 @@ class Core(db: Database, fileDbPath: String){
     } ~
     {
       // Route of sending
-      val sendingRoute: Route = processGetParamsRoute { getParams => // Process GET Parameters
+      val sendingRoute: Route = processParamsRoute { params => // Process parameters
         // Get a file from client and store it
         // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
         withoutSizeLimit {
           extractDataBytes { bytes =>
             // Store bytes to DB
             val storeFut: Future[(FileId, Digest[Algorithm.`MD5`.type], Digest[Algorithm.`SHA-1`.type], Digest[Algorithm.`SHA-256`.type])] =
-              storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt, getParams.usesSecureChar)
+              storeBytes(bytes, params.duration, params.getKeyOpt, params.nGetLimitOpt, params.idLengthOpt, params.isDeletable, params.deleteKeyOpt, params.usesSecureChar)
 
             onComplete(storeFut) {
               case Success((fileId, md5Digest, sha1Digest, sha256Digest)) =>
@@ -364,7 +402,7 @@ class Core(db: Database, fileDbPath: String){
     // "Post /" for client-sending a file
     (post & path("multipart")) {
       // Process GET Parameters
-      processGetParamsRoute{getParams =>
+      processParamsRoute{ params =>
         // (hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities)
         withoutSizeLimit {
           entity(as[Multipart.FormData]) {formData =>
@@ -373,7 +411,7 @@ class Core(db: Database, fileDbPath: String){
               val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
 
               // Store bytes to DB
-              storeBytes(bytes, getParams.duration, getParams.nGetLimitOpt, getParams.idLengthOpt, getParams.isDeletable, getParams.deleteKeyOpt, getParams.usesSecureChar)
+              storeBytes(bytes, params.duration, params.getKeyOpt, params.nGetLimitOpt, params.idLengthOpt, params.isDeletable, params.deleteKeyOpt, params.usesSecureChar)
                 .map(_._1)
             }
 
@@ -462,11 +500,11 @@ class Core(db: Database, fileDbPath: String){
   }
 
   /**
-    * Process GET paramters
+    * Process paramters
     * @param f
     * @return
     */
-  def processGetParamsRoute(f: GetParams => Route): Route = {
+  def processParamsRoute(f: Params => Route): Route = {
     // for routing DSL
     import akka.http.scaladsl.server.Directives._
 
@@ -521,7 +559,12 @@ class Core(db: Database, fileDbPath: String){
         convertBoolStrOptBoolOpt(usesSecureCharStrOpt)
           .getOrElse(false) // NOTE: Default usesSecureChar is false
 
-      f(GetParams(duration=duration, nGetLimitOpt=nGetLimitOpt, idLengthOpt=idLengthOpt, isDeletable=isDeletable, deleteKeyOpt=deleteKeyOpt, usesSecureChar=usesSecureChar))
+      // Get-get key by basic authentication
+      Util.extractBasicAuthUserAndPasswordOpt{userAndPasswordOpt =>
+        // Get get-key
+        val getKeyOpt: Option[String] = userAndPasswordOpt.map(_._2)
+        f(Params(duration=duration, nGetLimitOpt=nGetLimitOpt, idLengthOpt=idLengthOpt, isDeletable=isDeletable, deleteKeyOpt=deleteKeyOpt, usesSecureChar=usesSecureChar, getKeyOpt = getKeyOpt))
+      }
     }
   }
 
