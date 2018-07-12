@@ -10,6 +10,7 @@ import io.github.nwtgck.trans_server.digest.{Algorithm, Digest}
   * @param rawLength          Content length of raw data
   * @param createdAt          Created datetime
   * @param deadline           Dead datetime
+  * @param hashedGetKeyOpt    Hashed get-key
   * @param nGetLimitOpt       Limit of download
   * @param hashedDeleteKeyOpt Hashed delete key
   * @param md5Digest          MD5 digest
@@ -21,6 +22,7 @@ case class FileStore(fileId            : FileId,
                      rawLength         : Long,
                      createdAt         : java.sql.Timestamp,
                      deadline          : java.sql.Timestamp,
+                     hashedGetKeyOpt   : Option[String],
                      nGetLimitOpt      : Option[Int],
                      isDeletable       : Boolean,
                      hashedDeleteKeyOpt: Option[String],

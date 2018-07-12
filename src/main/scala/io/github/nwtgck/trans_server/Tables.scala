@@ -56,6 +56,7 @@ object Tables {
     val rawLength          = column[Long]("raw_length")
     val createdAt          = column[java.sql.Timestamp]("created_at")
     val deadline           = column[java.sql.Timestamp]("deadline")
+    val hashedGetKeyOpt    = column[Option[String]]("hashed_get_key_opt")
     val nGetLimitOpt       = column[Option[Int]]("n_get_limit_opt")
     val isDeletable        = column[Boolean]("is_deletable")
     val hashedDeleteKeyOpt = column[Option[String]]("hashed_delete_key_opt")
@@ -63,7 +64,7 @@ object Tables {
     val sha1Digest         = column[Digest[Algorithm.`SHA-1`.type]]("sha1_digest")
     val sha256Digest       = column[Digest[Algorithm.`SHA-256`.type]]("sha256_digest")
 
-    override def * = (fileId, storePath, rawLength, createdAt, deadline, nGetLimitOpt, isDeletable, hashedDeleteKeyOpt, md5Digest, sha1Digest, sha256Digest) <> (FileStore.tupled, FileStore.unapply)
+    override def * = (fileId, storePath, rawLength, createdAt, deadline, hashedGetKeyOpt, nGetLimitOpt, isDeletable, hashedDeleteKeyOpt, md5Digest, sha1Digest, sha256Digest) <> (FileStore.tupled, FileStore.unapply)
   }
 
 
