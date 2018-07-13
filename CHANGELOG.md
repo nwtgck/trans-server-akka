@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.15.1] - 2018-07-13
+### Added
+- Show file ID history on Web client
+
 ## [1.15.0] - 2018-07-12
 ### Added
 - Allow users to set download key
@@ -112,7 +116,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - Adapt [`sbt-native-packager`](https://github.com/sbt/sbt-native-packager) for [Heroku](https://heroku.com/)
 
 
-[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.15.0...HEAD
+[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.15.1...HEAD
+[1.15.1]: https://github.com/nwtgck/trans-server-akka/compare/v1.15.0...v1.15.1
 [1.15.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.12.0...v1.13.0
