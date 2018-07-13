@@ -4,6 +4,7 @@ import java.io.File
 import java.nio.file.StandardOpenOption
 
 import akka.actor.ActorSystem
+import akka.event.Logging
 import javax.crypto.Cipher
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
@@ -14,7 +15,7 @@ import akka.http.scaladsl.server.{Directive0, Route}
 import akka.stream.scaladsl.{Broadcast, Compression, FileIO, Flow, GraphDSL, Keep, RunnableGraph, Sink, Source}
 import akka.stream.{ActorMaterializer, ClosedShape, IOResult}
 import akka.util.ByteString
-import com.typesafe.scalalogging.Logger
+
 import io.github.nwtgck.trans_server.Tables.OriginalTypeImplicits._
 import io.github.nwtgck.trans_server.digest.{Algorithm, Digest, DigestCalculator}
 import slick.driver.H2Driver.api._
@@ -42,10 +43,10 @@ private [this] case class Params(duration       : FiniteDuration,
                                  usesSecureChar : Boolean,
                                  getKeyOpt      : Option[String])
 
-class Core(db: Database, fileDbPath: String){
+class Core(db: Database, fileDbPath: String)(implicit materializer: ActorMaterializer){
 
   // Logger
-  private[this] val logger = Logger(this.getClass)
+  private[this] val logger = Logging.getLogger(materializer.system, this)
 
 
   // Secure random generator
