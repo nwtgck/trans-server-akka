@@ -14,6 +14,7 @@ import akka.http.scaladsl.server.{Directive0, Route}
 import akka.stream.scaladsl.{Broadcast, Compression, FileIO, Flow, GraphDSL, Keep, RunnableGraph, Sink, Source}
 import akka.stream.{ActorMaterializer, ClosedShape, IOResult}
 import akka.util.ByteString
+import com.typesafe.scalalogging.Logger
 import io.github.nwtgck.trans_server.Tables.OriginalTypeImplicits._
 import io.github.nwtgck.trans_server.digest.{Algorithm, Digest, DigestCalculator}
 import slick.driver.H2Driver.api._
@@ -43,6 +44,9 @@ private [this] case class Params(duration       : FiniteDuration,
 
 class Core(db: Database, fileDbPath: String){
 
+  // Logger
+  private[this] val logger = Logger(this.getClass)
+
 
   // Secure random generator
   // (from: https://qiita.com/suin/items/bfff121c8481990e1507)
@@ -65,16 +69,16 @@ class Core(db: Database, fileDbPath: String){
         .getOrElse(Setting.DefaultIdLength)
         .max(Setting.MinIdLength)
         .min(Setting.MaxIdLength)
-    println(s"idLength: ${idLength}")
+    logger.debug(s"idLength: ${idLength}")
 
     // Generate File ID and storeFilePath
     generateNoDuplicatedFiledIdAndStorePathOpt(idLength, usesSecureChar) match {
       case Some((fileId, storeFilePath)) => {
         // Adjust duration (big duration is not good)
         val adjustedDuration: FiniteDuration = duration.min(Setting.MaxStoreDuration)
-        println(s"adjustedDuration: ${adjustedDuration}")
+        logger.debug(s"adjustedDuration: ${adjustedDuration}")
 
-        println(s"isDeletable: ${isDeletable}")
+        logger.debug(s"isDeletable: ${isDeletable}")
 
         // Generate hashed get-key
         val hashedGetKeyOpt: Option[String] =
@@ -159,11 +163,11 @@ class Core(db: Database, fileDbPath: String){
           // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
           _          <- db.run(Tables.allFileStores += fileStore)
           _ <- Future.successful {
-            println(s"IOResult: ${ioResult}")
-            println(s"rawLength: ${rawLength}")
-            println(s"md5Digest: ${md5Digest}")
-            println(s"sha1Digest: ${sha1Digest}")
-            println(s"sha256Digest: ${sha256Digest}")
+            logger.debug(s"IOResult: ${ioResult}")
+            logger.debug(s"rawLength: ${rawLength}")
+            logger.debug(s"md5Digest: ${md5Digest}")
+            logger.debug(s"sha1Digest: ${sha1Digest}")
+            logger.debug(s"sha256Digest: ${sha256Digest}")
           }
         } yield (fileId, md5Digest, sha1Digest, sha256Digest)
       }
@@ -381,7 +385,7 @@ class Core(db: Database, fileDbPath: String){
                   complete(s"${fileId.value}\n")
                 }
               case Failure(e) =>
-                println(e)
+                logger.error("Error in storing data", e)
                 e match {
                   case e: FileIdGenFailedException =>
                     complete(e.getMessage)
@@ -422,7 +426,7 @@ class Core(db: Database, fileDbPath: String){
               case Success(fileIds) =>
                 complete(fileIds.map(_.value).mkString("\n"))
               case Failure(e) =>
-                println(e)
+                logger.error("Error in storing data in multipart", e)
                 e match {
                   case e : FileIdGenFailedException =>
                     complete(e.getMessage)
@@ -510,9 +514,9 @@ class Core(db: Database, fileDbPath: String){
 
     parameter("duration".?, "get-times".?, "id-length".?, "deletable".?, "delete-key".?, "secure-char".?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String], usesSecureCharStrOpt: Option[String]) =>
 
-      println(s"durationStrOpt: ${durationStrOpt}")
+      logger.debug(s"durationStrOpt: ${durationStrOpt}")
 
-      println(s"isDeletableStrOpt: ${isDeletableStrOpt}")
+      logger.debug(s"isDeletableStrOpt: ${isDeletableStrOpt}")
 
       // Get duration
       val duration: FiniteDuration =
@@ -521,21 +525,21 @@ class Core(db: Database, fileDbPath: String){
           durationSec <- strToDurationSecOpt(durationStr)
         } yield durationSec.seconds)
           .getOrElse(Setting.DefaultStoreDuration)
-      println(s"Duration: ${duration}")
+      logger.debug(s"Duration: ${duration}")
 
       // Generate nGetLimitOpt
       val nGetLimitOpt: Option[Int] = for {
         nGetLimitStr <- nGetLimitStrOpt
         nGetLimit <- Try(nGetLimitStr.toInt).toOption
       } yield nGetLimit
-      println(s"nGetLimitOpt: ${nGetLimitOpt}")
+      logger.debug(s"nGetLimitOpt: ${nGetLimitOpt}")
 
       // Generate idLengthOpt
       val idLengthOpt: Option[Int] = for {
         idLengthStr <- idLengthStrOpt
         idLength <- Try(idLengthStr.toInt).toOption
       } yield idLength
-      println(s"idLengthOpt: ${idLengthOpt}")
+      logger.debug(s"idLengthOpt: ${idLengthOpt}")
 
       // Convert to Option[String] to Option[Boolean]
       def convertBoolStrOptBoolOpt(boolStrOpt: Option[String]): Option[Boolean] =
@@ -629,13 +633,13 @@ class Core(db: Database, fileDbPath: String){
           try {
             new File(file.storePath).delete()
           } catch {case e: Throwable =>
-            println(e)
+            logger.error("Error in file deletion", e)
           }
         }
       }
 
       // Print for debugging
-      _         <- Future{println(s"Cleanup ${deadFiles.size} dead files")}
+      _         <- Future{logger.debug(s"Cleanup ${deadFiles.size} dead files")}
     } yield ()
   }
 
