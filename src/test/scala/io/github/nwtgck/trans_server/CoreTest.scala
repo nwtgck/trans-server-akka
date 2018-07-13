@@ -34,7 +34,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Await.ready(Tables.createTablesIfNotExist(db), Duration.Inf)
     // Temp directory for file DB
     val tmpFileDbPath: String = Files.createTempDirectory("file_db_").toString
-    println(s"tmpFileDbPath: ${tmpFileDbPath}")
     // Create a core system
     core = new Core(db, fileDbPath = tmpFileDbPath)
   }
@@ -79,7 +78,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post("/").withEntity(fileContent) ~> core.route ~> check {
       // Get file ID
       val fileId: String = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be DefaultIdLength
       fileId.length shouldBe Setting.DefaultIdLength
 
@@ -96,7 +94,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post("/").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be 3
       fileId.length shouldBe 3
     }
@@ -136,7 +133,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post("/multipart", formData) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be 3
       fileId.length shouldBe 3
     }
@@ -210,7 +206,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post("/multipart", formData) ~> addCredentials(credentials1) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be 3
       fileId.length shouldBe 3
     }
@@ -236,7 +231,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Put("/").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be 3
       fileId.length shouldBe 3
     }
@@ -250,7 +244,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Put("/hoge.txt").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be 3
       fileId.length shouldBe 3
     }
@@ -277,7 +270,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post("/").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be 3
       fileId.length shouldBe 3
       // Verify Checksum
@@ -303,7 +295,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be 3
       fileId.length shouldBe 3
     }
@@ -342,7 +333,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be 3
       fileId.length shouldBe 3
     }
@@ -361,7 +351,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post(s"/?duration=${durationSec}s").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be 3
       fileId.length shouldBe 3
     }
@@ -383,7 +372,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post(s"/?duration=${durationSec}s").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be 3
       fileId.length shouldBe 3
     }
@@ -403,7 +391,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post(s"/?get-times=${times}").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be 3
       fileId.length shouldBe 3
     }
@@ -431,7 +418,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post(s"/?id-length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
       // Get file ID
       val fileId: String = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be fileIdLength
       fileId.length shouldBe fileIdLength
     }
@@ -444,7 +430,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post(s"/?id-length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be MaxIdLength
       fileId.length shouldBe Setting.MaxIdLength
     }
@@ -462,7 +447,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post(s"/?length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be MinIdLength
       fileId.length shouldBe Setting.MinIdLength
     }
@@ -641,7 +625,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
       // Get file ID
       fileId = responseAs[String].trim
-      println(s"fileId: ${fileId}")
       // File ID length should be 3
       fileId.length shouldBe 3
     }
@@ -673,7 +656,6 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       Post("/?secure-char").withEntity(originalContent) ~> core.route ~> check {
         // Get file ID
         fileId = responseAs[String].trim
-        println(s"fileId: ${fileId}")
         // Concat file ID
         concatedFileId += fileId
         // File ID length should be 3
