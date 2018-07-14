@@ -230,7 +230,10 @@ class Core(db: Database, fileDbPath: String)(implicit materializer: ActorMateria
     get {
       // "Get /" for confirming whether the server is running
       pathSingleSlash {
-        getFromResource("index.html") // (from: https://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/directives/file-and-resource-directives/getFromResource.html)
+        // Redirect http to https in Heroku or IBM Cloud (Bluemix)
+        Util.xForwardedProtoHttpsRedirectRoute(
+          getFromResource("index.html") // (from: https://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/directives/file-and-resource-directives/getFromResource.html)
+        )
       } ~
       // Version routing
       path(Setting.GetRouteName.Version) {
