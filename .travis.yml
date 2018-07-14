@@ -2,7 +2,13 @@ language: scala
 
 # (from: https://github.com/scoverage/sbt-coveralls)
 script:
+  # sbt test
   - sbt clean coverage test
+  # working-test of `sbt assembly`
+  - sbt assembly
+  # working-test of `sbt dist`
+  - sbt dist
+
 after_success:
   - sbt coverageReport coveralls
 
