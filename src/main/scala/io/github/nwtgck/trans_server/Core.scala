@@ -144,6 +144,17 @@ class Core(db: Database, fileDbPath: String)(implicit materializer: ActorMateria
         for {
           // Store a file and get content length
           (ioResult, rawLength, md5Digest, sha1Digest, sha256Digest) <- storeGraph.run()
+            .andThen{
+              case succ@Success(_) =>
+                succ
+              case Failure(e) =>
+                // Remove file if failed
+                logger.error("Error in store", e)
+                logger.debug(s"Deleting '${storeFilePath}'...")
+                val res: Boolean = new File(storeFilePath).delete()
+                logger.debug(s"Deleted(${fileId.value}): ${res}")
+                Failure(e)
+            }
 
           // Create file store object
           fileStore = FileStore(
