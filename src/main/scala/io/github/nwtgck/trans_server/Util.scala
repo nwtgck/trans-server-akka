@@ -4,8 +4,9 @@ import java.io.{FileInputStream, InputStream}
 import java.security.{KeyStore, SecureRandom}
 import java.util.Base64
 
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives.extractRequest
-import akka.http.scaladsl.server.{Directive, Directive1}
+import akka.http.scaladsl.server.{Directive, Directive1, Route}
 import akka.http.scaladsl.{ConnectionContext, HttpsConnectionContext}
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 
@@ -100,6 +101,24 @@ object Util {
         // "Authorization" header is not found
         case None =>
           f(Tuple1(None))
+      }
+    }
+  }
+
+  // Redirect http to https in Heroku or IBM Cloud (Bluemix)
+  // (from: https://stackoverflow.com/a/39227668/2885946)
+  def xForwardedProtoHttpsRedirectRoute(route: Route): Route = {
+    import akka.http.scaladsl.server.Directives._
+
+    extractUri{uri =>
+      optionalHeaderValueByName("X-Forwarded-Proto") {
+        case Some(xForwardedProto) if xForwardedProto != "https" =>
+          redirect(
+            uri.copy(scheme = "https"),
+            StatusCodes.PermanentRedirect
+          )
+        case _ =>
+          route
       }
     }
   }
