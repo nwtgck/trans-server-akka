@@ -41,10 +41,6 @@ lazy val root = (project in file(".")).
       "org.slf4j" % "slf4j-nop" % "1.7.25",
       "com.h2database" % "h2" % "1.4.197",
 
-      // Logging
-      "ch.qos.logback" % "logback-classic" % "1.2.3",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
-
       // ScalaTest
       "org.scalatest" %% "scalatest" % "2.2.6" % "test"
     )
