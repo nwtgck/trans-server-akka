@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ### Added
 - Redirect HTTP to HTTPS when "X-Forwarded-Proto" is used (Heroku or IBM Cloud (Bluemix))
 
+### Changed
+- Encrypt storing files by download-key from Basic Authentication
+
 ## [1.15.1] - 2018-07-13
 ### Added
 - Show file ID history on Web client
