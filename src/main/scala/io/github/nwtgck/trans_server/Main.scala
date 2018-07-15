@@ -35,7 +35,7 @@ object Main {
           Try(httpsPortStr.toInt).getOrElse(DEFAULT_HTTPS_PORT)
         )
       case _ =>
-        (sys.env.getOrElse("PORT", DEFAULT_HTTP_PORT.toString).toInt, DEFAULT_HTTPS_PORT)
+        (DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT)
     }
 
 //     Create a memory-base db
