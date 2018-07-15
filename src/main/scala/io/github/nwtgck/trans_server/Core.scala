@@ -120,6 +120,10 @@ class Core(db: Database, fileDbPath: String)(implicit materializer: ActorMateria
           def futureZip5[A, B, C, D, E](aFut: Future[A], bFut: Future[B], cFut: Future[C], dFut: Future[D], eFut: Future[E]): Future[(A, B, C, D, E)] =
             aFut.zip(bFut).zip(cFut).zip(dFut).zip(eFut).map{case ((((a, b), c), d), e) => (a, b, c, d, e)}
 
+          // Store key
+          val storeKey: String =
+            getKeyOpt.getOrElse("") + Setting.FileEncryptionKey
+
           RunnableGraph.fromGraph(GraphDSL.create(fileStoreSink, lengthSink, md5Sink, sha1Sink, sha256Sink)(futureZip5){implicit builder =>
             (fileStoreSink, lengthSink, md5Sink, sha1Sink, sha256Sink) =>
 
@@ -131,7 +135,7 @@ class Core(db: Database, fileDbPath: String)(implicit materializer: ActorMateria
             // * calc MD5
             // * calc SHA-1
             // * calc SHA-256
-            byteSource ~> bcast ~> Compression.gzip ~> CipherFlow.flow(genEncryptCipher()) ~> fileStoreSink
+            byteSource ~> bcast ~> Compression.gzip ~> CipherFlow.flow(genEncryptCipher(storeKey)) ~> fileStoreSink
                           bcast ~> lengthSink
                           bcast ~> md5Sink
                           bcast ~> sha1Sink
@@ -326,10 +330,10 @@ class Core(db: Database, fileDbPath: String)(implicit materializer: ActorMateria
                 onComplete(db.run(decrementDbio)){
                   case Success(_) =>
 
-                    val source =
+                    def fileSource(storeKey: String) =
                       FileIO.fromPath(file.toPath)
                         // Decrypt data
-                        .via(CipherFlow.flow(genDecryptCipher()))
+                        .via(CipherFlow.flow(genDecryptCipher(storeKey)))
                         // Decompress data
                         .via(Compression.gunzip())
 
@@ -339,15 +343,16 @@ class Core(db: Database, fileDbPath: String)(implicit materializer: ActorMateria
                         headers.RawHeader(Setting.Sha256HttpHeaderName, fileStore.sha256Digest.value)
                       ){
                         // File response
-                        val fileResponse = complete(HttpEntity(ContentTypes.NoContentType, fileStore.rawLength, source))
+                        def fileResponse(storeKey: String) =
+                          complete(HttpEntity(ContentTypes.NoContentType, fileStore.rawLength, fileSource(storeKey)))
 
                         fileStore.hashedGetKeyOpt match {
                           // Has get-key
-                          case Some(getKey) =>
+                          case Some(hashedGetKey) =>
                             // Authenticator for get-key
                             def getKeyAuthenticator(credentials: Credentials): Option[Unit] =
                               credentials match {
-                                case p @ Credentials.Provided(id) if p.verify(getKey, k => Util.generateHashedKey1(k, Setting.KeySalt)) => Some(())
+                                case p @ Credentials.Provided(id) if p.verify(hashedGetKey, k => Util.generateHashedKey1(k, Setting.KeySalt)) => Some(())
                                 case _ => None
                               }
 
@@ -356,13 +361,19 @@ class Core(db: Database, fileDbPath: String)(implicit materializer: ActorMateria
                             Route.seal {
                               // Basic authentication
                               authenticateBasic(realm = "", authenticator = getKeyAuthenticator) { _ =>
-                                fileResponse
+                                Util.extractBasicAuthUserAndPasswordOpt{
+                                  case Some((_, getKey)) =>
+                                    fileResponse(storeKey = getKey + Setting.FileEncryptionKey)
+                                  case None =>
+                                    logger.error("Critical Error: getting password of Basic Authentication (This will never happen)")
+                                    complete(StatusCodes.InternalServerError, s"Server error in Basic Authentication\n")
+                                }
                               }
                             }
                           // Not have get-key
                           case None =>
                             // Just response
-                            fileResponse
+                            fileResponse(Setting.FileEncryptionKey)
                         }
                       }
 
@@ -587,7 +598,7 @@ class Core(db: Database, fileDbPath: String)(implicit materializer: ActorMateria
     }
   }
 
-  private def genEncryptCipher(): Cipher = {
+  private def genEncryptCipher(key: String): Cipher = {
     // Initialize Cipher
     // (from: http://www.suzushin7.jp/entry/2016/11/25/aes-encryption-and-decryption-in-java/)
     // (from: https://stackoverflow.com/a/17323025/2885946)
@@ -596,13 +607,13 @@ class Core(db: Database, fileDbPath: String)(implicit materializer: ActorMateria
     import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
     cipher.init(
       Cipher.ENCRYPT_MODE,
-      new SecretKeySpec(Setting.FileEncryptionKey.getBytes, "AES"),
+      new SecretKeySpec(key.getBytes.take(16), "AES"),
       new IvParameterSpec(new Array[Byte](cipher.getBlockSize))
     )
     cipher
   }
 
-  private def genDecryptCipher(): Cipher = {
+  private def genDecryptCipher(key: String): Cipher = {
     // Initialize Cipher
     // (from: http://www.suzushin7.jp/entry/2016/11/25/aes-encryption-and-decryption-in-java/)
     // (from: https://stackoverflow.com/a/17323025/2885946)
@@ -611,7 +622,7 @@ class Core(db: Database, fileDbPath: String)(implicit materializer: ActorMateria
     import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
     cipher.init(
       Cipher.DECRYPT_MODE,
-      new SecretKeySpec(Setting.FileEncryptionKey.getBytes, "AES"),
+      new SecretKeySpec(key.getBytes.take(16), "AES"),
       new IvParameterSpec(new Array[Byte](cipher.getBlockSize))
     )
     cipher
