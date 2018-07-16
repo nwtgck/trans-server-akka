@@ -41,6 +41,9 @@ lazy val root = (project in file(".")).
       "org.slf4j" % "slf4j-nop" % "1.7.25",
       "com.h2database" % "h2" % "1.4.197",
 
+      // scopt
+      "com.github.scopt" %% "scopt" % "3.6.0",
+
       // ScalaTest
       "org.scalatest" %% "scalatest" % "2.2.6" % "test"
     )
