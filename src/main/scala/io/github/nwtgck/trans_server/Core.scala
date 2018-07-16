@@ -245,18 +245,20 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
     get {
       // "Get /" for confirming whether the server is running
       pathSingleSlash {
-        // Redirect http to https in Heroku or IBM Cloud (Bluemix)
-        if(enableTopPageHttpsRedirect){
-          extractUri { uri =>
+        extractUri { uri =>
+          // If top-page redirect is enable and scheme is HTTP
+          if (enableTopPageHttpsRedirect && uri.scheme == "http") {
+            // Redirect to HTTPs page
             redirect(
               uri.copy(scheme = "https"),
               StatusCodes.PermanentRedirect
             )
+          } else {
+            // Redirect http to https in Heroku or IBM Cloud (Bluemix)
+            Util.xForwardedProtoHttpsRedirectRoute(
+              getFromResource("index.html") // (from: https://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/directives/file-and-resource-directives/getFromResource.html)
+            )
           }
-        } else {
-          Util.xForwardedProtoHttpsRedirectRoute(
-            getFromResource("index.html") // (from: https://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/directives/file-and-resource-directives/getFromResource.html)
-          )
         }
       } ~
       // Version routing
