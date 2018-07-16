@@ -92,7 +92,7 @@ The following example runs a server on 80 port.
 ```sh
 $ cd <this-project>
 $ ./make-keystore.bash
-$ sbt "run-main Main 80"
+$ sbt "run-main io.github.nwtgck.trans_server.Main --http-port=8282"
 ```
 
 ### Way 3 - Making a jar
@@ -116,7 +116,7 @@ $ sbt assembly
 #### 3. Run the jar
 
 ```sh
-$ sudo java -jar target/scala-2.11/trans-server-akka.jar 80 443
+$ java -jar target/scala-2.11/trans-server-akka.jar --http-port=8282 --https-port=4433
 ```
 
 ## How to send a file to the server

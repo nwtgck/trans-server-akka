@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ### Changed
 - Encrypt storing files by download-key from Basic Authentication
+- Specify HTTP/HTTPS ports by command line options
 
 ## [1.15.1] - 2018-07-13
 ### Added
