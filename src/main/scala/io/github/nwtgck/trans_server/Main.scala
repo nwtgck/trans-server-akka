@@ -18,7 +18,9 @@ import scala.util.{Failure, Success, Try}
 object Main {
 
   // Command line option
-  case class TransOption(httpPort: Int, httpsPortOpt: Option[Int])
+  case class TransOption(httpPort: Int,
+                         httpsPortOpt: Option[Int],
+                         enableTopPageHttpsRedirect: Boolean)
 
   // Option parser
   val optParser: OptionParser[TransOption] = new scopt.OptionParser[TransOption]("") {
@@ -29,6 +31,10 @@ object Main {
     opt[Int]("https-port") action {(v, option) =>
       option.copy(httpsPortOpt = Some(v))
     } text "HTTPS port (server does not use HTTPS if not specified)"
+
+    opt[Unit]("top-page-https-redirect") action {(_, option) =>
+      option.copy(enableTopPageHttpsRedirect = true)
+    } text "Enable Top-page HTTPS redirect"
   }
 
 
@@ -40,7 +46,8 @@ object Main {
     // Parse option
     optParser.parse(args, TransOption(
       httpPort     = DEFAULT_HTTP_PORT,
-      httpsPortOpt = None
+      httpsPortOpt = None,
+      enableTopPageHttpsRedirect = false
     )) match {
       case Some(option) =>
 
@@ -59,7 +66,7 @@ object Main {
         import concurrent.ExecutionContext.Implicits.global
 
         // Create core system of trans server
-        val core: Core = new Core(db, fileDbPath = Setting.File_DB_PATH)
+        val core: Core = new Core(db, fileDbPath = Setting.File_DB_PATH, option.enableTopPageHttpsRedirect)
 
 
         // Create File DB if non

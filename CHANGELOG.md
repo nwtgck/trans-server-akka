@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 ### Added
 - Redirect HTTP to HTTPS when "X-Forwarded-Proto" is used (Heroku or IBM Cloud (Bluemix))
+- Redirect HTTP to HTTPS in top page by specifying a command line option
 
 ### Changed
 - Encrypt storing files by download-key from Basic Authentication
