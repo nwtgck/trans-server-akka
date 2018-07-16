@@ -4,6 +4,7 @@ import java.io.File
 import java.nio.file.StandardOpenOption
 
 import akka.actor.ActorSystem
+import akka.event.Logging
 import javax.crypto.Cipher
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
@@ -14,6 +15,7 @@ import akka.http.scaladsl.server.{Directive0, Route}
 import akka.stream.scaladsl.{Broadcast, Compression, FileIO, Flow, GraphDSL, Keep, RunnableGraph, Sink, Source}
 import akka.stream.{ActorMaterializer, ClosedShape, IOResult}
 import akka.util.ByteString
+
 import io.github.nwtgck.trans_server.Tables.OriginalTypeImplicits._
 import io.github.nwtgck.trans_server.digest.{Algorithm, Digest, DigestCalculator}
 import slick.driver.H2Driver.api._
@@ -41,7 +43,10 @@ private [this] case class Params(duration       : FiniteDuration,
                                  usesSecureChar : Boolean,
                                  getKeyOpt      : Option[String])
 
-class Core(db: Database, fileDbPath: String){
+class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean)(implicit materializer: ActorMaterializer){
+
+  // Logger
+  private[this] val logger = Logging.getLogger(materializer.system, this)
 
 
   // Secure random generator
@@ -65,16 +70,16 @@ class Core(db: Database, fileDbPath: String){
         .getOrElse(Setting.DefaultIdLength)
         .max(Setting.MinIdLength)
         .min(Setting.MaxIdLength)
-    println(s"idLength: ${idLength}")
+    logger.debug(s"idLength: ${idLength}")
 
     // Generate File ID and storeFilePath
     generateNoDuplicatedFiledIdAndStorePathOpt(idLength, usesSecureChar) match {
       case Some((fileId, storeFilePath)) => {
         // Adjust duration (big duration is not good)
         val adjustedDuration: FiniteDuration = duration.min(Setting.MaxStoreDuration)
-        println(s"adjustedDuration: ${adjustedDuration}")
+        logger.debug(s"adjustedDuration: ${adjustedDuration}")
 
-        println(s"isDeletable: ${isDeletable}")
+        logger.debug(s"isDeletable: ${isDeletable}")
 
         // Generate hashed get-key
         val hashedGetKeyOpt: Option[String] =
@@ -115,6 +120,10 @@ class Core(db: Database, fileDbPath: String){
           def futureZip5[A, B, C, D, E](aFut: Future[A], bFut: Future[B], cFut: Future[C], dFut: Future[D], eFut: Future[E]): Future[(A, B, C, D, E)] =
             aFut.zip(bFut).zip(cFut).zip(dFut).zip(eFut).map{case ((((a, b), c), d), e) => (a, b, c, d, e)}
 
+          // Store key
+          val storeKey: String =
+            getKeyOpt.getOrElse("") + Setting.FileEncryptionKey
+
           RunnableGraph.fromGraph(GraphDSL.create(fileStoreSink, lengthSink, md5Sink, sha1Sink, sha256Sink)(futureZip5){implicit builder =>
             (fileStoreSink, lengthSink, md5Sink, sha1Sink, sha256Sink) =>
 
@@ -126,7 +135,7 @@ class Core(db: Database, fileDbPath: String){
             // * calc MD5
             // * calc SHA-1
             // * calc SHA-256
-            byteSource ~> bcast ~> Compression.gzip ~> CipherFlow.flow(genEncryptCipher()) ~> fileStoreSink
+            byteSource ~> bcast ~> Compression.gzip ~> CipherFlow.flow(genEncryptCipher(storeKey)) ~> fileStoreSink
                           bcast ~> lengthSink
                           bcast ~> md5Sink
                           bcast ~> sha1Sink
@@ -136,9 +145,20 @@ class Core(db: Database, fileDbPath: String){
         }
 
 
+        // Store future
+        val storeFuture = storeGraph.run()
+
+        // Remove file if failed
+        storeFuture.onFailure{case e =>
+          logger.error("Error in store", e)
+          logger.debug(s"Deleting '${storeFilePath}'...")
+          val res: Boolean = new File(storeFilePath).delete()
+          logger.debug(s"Deleted(${fileId.value}): ${res}")
+        }
+
         for {
           // Store a file and get content length
-          (ioResult, rawLength, md5Digest, sha1Digest, sha256Digest) <- storeGraph.run()
+          (ioResult, rawLength, md5Digest, sha1Digest, sha256Digest) <- storeFuture
 
           // Create file store object
           fileStore = FileStore(
@@ -159,11 +179,11 @@ class Core(db: Database, fileDbPath: String){
           // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
           _          <- db.run(Tables.allFileStores += fileStore)
           _ <- Future.successful {
-            println(s"IOResult: ${ioResult}")
-            println(s"rawLength: ${rawLength}")
-            println(s"md5Digest: ${md5Digest}")
-            println(s"sha1Digest: ${sha1Digest}")
-            println(s"sha256Digest: ${sha256Digest}")
+            logger.debug(s"IOResult: ${ioResult}")
+            logger.debug(s"rawLength: ${rawLength}")
+            logger.debug(s"md5Digest: ${md5Digest}")
+            logger.debug(s"sha1Digest: ${sha1Digest}")
+            logger.debug(s"sha256Digest: ${sha256Digest}")
           }
         } yield (fileId, md5Digest, sha1Digest, sha256Digest)
       }
@@ -225,7 +245,21 @@ class Core(db: Database, fileDbPath: String){
     get {
       // "Get /" for confirming whether the server is running
       pathSingleSlash {
-        getFromResource("index.html") // (from: https://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/directives/file-and-resource-directives/getFromResource.html)
+        extractUri { uri =>
+          // If top-page redirect is enable and scheme is HTTP
+          if (enableTopPageHttpsRedirect && uri.scheme == "http") {
+            // Redirect to HTTPs page
+            redirect(
+              uri.copy(scheme = "https"),
+              StatusCodes.PermanentRedirect
+            )
+          } else {
+            // Redirect http to https in Heroku or IBM Cloud (Bluemix)
+            Util.xForwardedProtoHttpsRedirectRoute(
+              getFromResource("index.html") // (from: https://doc.akka.io/docs/akka-http/current/scala/http/routing-dsl/directives/file-and-resource-directives/getFromResource.html)
+            )
+          }
+        }
       } ~
       // Version routing
       path(Setting.GetRouteName.Version) {
@@ -307,10 +341,10 @@ class Core(db: Database, fileDbPath: String){
                 onComplete(db.run(decrementDbio)){
                   case Success(_) =>
 
-                    val source =
+                    def fileSource(storeKey: String) =
                       FileIO.fromPath(file.toPath)
                         // Decrypt data
-                        .via(CipherFlow.flow(genDecryptCipher()))
+                        .via(CipherFlow.flow(genDecryptCipher(storeKey)))
                         // Decompress data
                         .via(Compression.gunzip())
 
@@ -320,15 +354,16 @@ class Core(db: Database, fileDbPath: String){
                         headers.RawHeader(Setting.Sha256HttpHeaderName, fileStore.sha256Digest.value)
                       ){
                         // File response
-                        val fileResponse = complete(HttpEntity(ContentTypes.NoContentType, fileStore.rawLength, source))
+                        def fileResponse(storeKey: String) =
+                          complete(HttpEntity(ContentTypes.NoContentType, fileStore.rawLength, fileSource(storeKey)))
 
                         fileStore.hashedGetKeyOpt match {
                           // Has get-key
-                          case Some(getKey) =>
+                          case Some(hashedGetKey) =>
                             // Authenticator for get-key
                             def getKeyAuthenticator(credentials: Credentials): Option[Unit] =
                               credentials match {
-                                case p @ Credentials.Provided(id) if p.verify(getKey, k => Util.generateHashedKey1(k, Setting.KeySalt)) => Some(())
+                                case p @ Credentials.Provided(id) if p.verify(hashedGetKey, k => Util.generateHashedKey1(k, Setting.KeySalt)) => Some(())
                                 case _ => None
                               }
 
@@ -337,13 +372,19 @@ class Core(db: Database, fileDbPath: String){
                             Route.seal {
                               // Basic authentication
                               authenticateBasic(realm = "", authenticator = getKeyAuthenticator) { _ =>
-                                fileResponse
+                                Util.extractBasicAuthUserAndPasswordOpt{
+                                  case Some((_, getKey)) =>
+                                    fileResponse(storeKey = getKey + Setting.FileEncryptionKey)
+                                  case None =>
+                                    logger.error("Critical Error: getting password of Basic Authentication (This will never happen)")
+                                    complete(StatusCodes.InternalServerError, s"Server error in Basic Authentication\n")
+                                }
                               }
                             }
                           // Not have get-key
                           case None =>
                             // Just response
-                            fileResponse
+                            fileResponse(Setting.FileEncryptionKey)
                         }
                       }
 
@@ -381,7 +422,7 @@ class Core(db: Database, fileDbPath: String){
                   complete(s"${fileId.value}\n")
                 }
               case Failure(e) =>
-                println(e)
+                logger.error("Error in storing data", e)
                 e match {
                   case e: FileIdGenFailedException =>
                     complete(e.getMessage)
@@ -422,7 +463,7 @@ class Core(db: Database, fileDbPath: String){
               case Success(fileIds) =>
                 complete(fileIds.map(_.value).mkString("\n"))
               case Failure(e) =>
-                println(e)
+                logger.error("Error in storing data in multipart", e)
                 e match {
                   case e : FileIdGenFailedException =>
                     complete(e.getMessage)
@@ -510,9 +551,9 @@ class Core(db: Database, fileDbPath: String){
 
     parameter("duration".?, "get-times".?, "id-length".?, "deletable".?, "delete-key".?, "secure-char".?) { (durationStrOpt: Option[String], nGetLimitStrOpt: Option[String], idLengthStrOpt: Option[String], isDeletableStrOpt: Option[String], deleteKeyOpt: Option[String], usesSecureCharStrOpt: Option[String]) =>
 
-      println(s"durationStrOpt: ${durationStrOpt}")
+      logger.debug(s"durationStrOpt: ${durationStrOpt}")
 
-      println(s"isDeletableStrOpt: ${isDeletableStrOpt}")
+      logger.debug(s"isDeletableStrOpt: ${isDeletableStrOpt}")
 
       // Get duration
       val duration: FiniteDuration =
@@ -521,21 +562,21 @@ class Core(db: Database, fileDbPath: String){
           durationSec <- strToDurationSecOpt(durationStr)
         } yield durationSec.seconds)
           .getOrElse(Setting.DefaultStoreDuration)
-      println(s"Duration: ${duration}")
+      logger.debug(s"Duration: ${duration}")
 
       // Generate nGetLimitOpt
       val nGetLimitOpt: Option[Int] = for {
         nGetLimitStr <- nGetLimitStrOpt
         nGetLimit <- Try(nGetLimitStr.toInt).toOption
       } yield nGetLimit
-      println(s"nGetLimitOpt: ${nGetLimitOpt}")
+      logger.debug(s"nGetLimitOpt: ${nGetLimitOpt}")
 
       // Generate idLengthOpt
       val idLengthOpt: Option[Int] = for {
         idLengthStr <- idLengthStrOpt
         idLength <- Try(idLengthStr.toInt).toOption
       } yield idLength
-      println(s"idLengthOpt: ${idLengthOpt}")
+      logger.debug(s"idLengthOpt: ${idLengthOpt}")
 
       // Convert to Option[String] to Option[Boolean]
       def convertBoolStrOptBoolOpt(boolStrOpt: Option[String]): Option[Boolean] =
@@ -568,7 +609,7 @@ class Core(db: Database, fileDbPath: String){
     }
   }
 
-  private def genEncryptCipher(): Cipher = {
+  private def genEncryptCipher(key: String): Cipher = {
     // Initialize Cipher
     // (from: http://www.suzushin7.jp/entry/2016/11/25/aes-encryption-and-decryption-in-java/)
     // (from: https://stackoverflow.com/a/17323025/2885946)
@@ -577,13 +618,13 @@ class Core(db: Database, fileDbPath: String){
     import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
     cipher.init(
       Cipher.ENCRYPT_MODE,
-      new SecretKeySpec(Setting.FileEncryptionKey.getBytes, "AES"),
+      new SecretKeySpec(key.getBytes.take(16), "AES"),
       new IvParameterSpec(new Array[Byte](cipher.getBlockSize))
     )
     cipher
   }
 
-  private def genDecryptCipher(): Cipher = {
+  private def genDecryptCipher(key: String): Cipher = {
     // Initialize Cipher
     // (from: http://www.suzushin7.jp/entry/2016/11/25/aes-encryption-and-decryption-in-java/)
     // (from: https://stackoverflow.com/a/17323025/2885946)
@@ -592,7 +633,7 @@ class Core(db: Database, fileDbPath: String){
     import javax.crypto.spec.{IvParameterSpec, SecretKeySpec}
     cipher.init(
       Cipher.DECRYPT_MODE,
-      new SecretKeySpec(Setting.FileEncryptionKey.getBytes, "AES"),
+      new SecretKeySpec(key.getBytes.take(16), "AES"),
       new IvParameterSpec(new Array[Byte](cipher.getBlockSize))
     )
     cipher
@@ -629,13 +670,13 @@ class Core(db: Database, fileDbPath: String){
           try {
             new File(file.storePath).delete()
           } catch {case e: Throwable =>
-            println(e)
+            logger.error("Error in file deletion", e)
           }
         }
       }
 
       // Print for debugging
-      _         <- Future{println(s"Cleanup ${deadFiles.size} dead files")}
+      _         <- Future{logger.debug(s"Cleanup ${deadFiles.size} dead files")}
     } yield ()
   }
 
