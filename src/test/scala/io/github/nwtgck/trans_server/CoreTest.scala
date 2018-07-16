@@ -35,7 +35,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     // Temp directory for file DB
     val tmpFileDbPath: String = Files.createTempDirectory("file_db_").toString
     // Create a core system
-    core = new Core(db, fileDbPath = tmpFileDbPath)
+    core = new Core(db, fileDbPath = tmpFileDbPath, enableTopPageHttpsRedirect = false)
   }
 
   // Calculate digest string
