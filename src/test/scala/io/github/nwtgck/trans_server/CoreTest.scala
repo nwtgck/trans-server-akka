@@ -58,6 +58,20 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     core invokePrivate strToDurationSecOpt("hoge") shouldBe None
   }
 
+  test("[positive] top page") {
+    Get(s"/") ~> core.route ~> check {
+      // Just check status code
+      status.intValue() shouldBe 200
+    }
+  }
+
+  test("[positive] top page (X-Forwarded-Proto redirection)") {
+    Get(s"/") ~> addHeader("X-Forwarded-Proto", "http") ~> core.route ~> check {
+      // Status should be "Permanent Redirect"
+      status shouldBe StatusCodes.PermanentRedirect
+    }
+  }
+
   test("[positive] help page") {
     Get(s"/help") ~> core.route ~> check {
       // Just check status code
