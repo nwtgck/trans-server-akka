@@ -1,1 +1,1 @@
-web: ./make-keystore.bash && target/universal/stage/bin/trans-server-akka --http-port=$PORT
+web: target/universal/stage/bin/trans-server-akka --http-port=$PORT
