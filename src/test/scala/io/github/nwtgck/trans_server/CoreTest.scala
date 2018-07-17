@@ -90,13 +90,15 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[positive] send/get") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId: String = null
-    Post("/").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be 3
-      fileId.length shouldBe 3
-    }
+    val fileId: String =
+      Post("/").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
 
     Get(s"/${fileId}") ~> core.route ~> check {
       val resContent: String = responseAs[String]
@@ -129,13 +131,15 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     val fileData = Multipart.FormData.BodyPart.Strict("dummy_name", HttpEntity(ContentTypes.`text/plain(UTF-8)`, originalContent))
     val formData = Multipart.FormData(fileData)
 
-    var fileId: String = null
-    Post("/multipart", formData) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be 3
-      fileId.length shouldBe 3
-    }
+    val fileId: String =
+      Post("/multipart", formData) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
 
     Get(s"/${fileId}") ~> core.route ~> check {
       val resContent: String = responseAs[String]
@@ -202,13 +206,15 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
     val credentials1 = BasicHttpCredentials("dummy user", "p4ssw0rd")
 
-    var fileId: String = null
-    Post("/multipart", formData) ~> addCredentials(credentials1) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be 3
-      fileId.length shouldBe 3
-    }
+    val fileId: String =
+      Post("/multipart", formData) ~> addCredentials(credentials1) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
 
     // Get the file without user and password
     // (from: https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/security-directives/authenticateBasic.html)
@@ -227,28 +233,33 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[positive] send/get by PUT") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId: String = null
-    Put("/").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be 3
-      fileId.length shouldBe 3
-    }
+    val fileId1: String =
+      Put("/").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
 
-    Get(s"/${fileId}") ~> core.route ~> check {
+        fileId
+      }
+
+    Get(s"/${fileId1}") ~> core.route ~> check {
       val resContent: String = responseAs[String]
       // response should be original
       resContent shouldBe originalContent
     }
 
-    Put("/hoge.txt").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be 3
-      fileId.length shouldBe 3
-    }
+    val fileId2: String =
+      Put("/hoge.txt").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
 
-    Get(s"/${fileId}") ~> core.route ~> check {
+        fileId
+      }
+
+    Get(s"/${fileId2}") ~> core.route ~> check {
       val resContent: String = responseAs[String]
       // response should be original
       resContent shouldBe originalContent
@@ -266,17 +277,19 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
     val originalContent: ByteString = ByteString(originalBytes)
 
-    var fileId: String = null
-    Post("/").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be 3
-      fileId.length shouldBe 3
-      // Verify Checksum
-      header(Setting.Md5HttpHeaderName).get.value shouldBe calcDigestString(originalBytes, Algorithm.MD5)
-      header(Setting.Sha1HttpHeaderName).get.value shouldBe calcDigestString(originalBytes, Algorithm.`SHA-1`)
-      header(Setting.Sha256HttpHeaderName).get.value shouldBe calcDigestString(originalBytes, Algorithm.`SHA-256`)
-    }
+    val fileId: String =
+      Post("/").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+        // Verify Checksum
+        header(Setting.Md5HttpHeaderName).get.value shouldBe calcDigestString(originalBytes, Algorithm.MD5)
+        header(Setting.Sha1HttpHeaderName).get.value shouldBe calcDigestString(originalBytes, Algorithm.`SHA-1`)
+        header(Setting.Sha256HttpHeaderName).get.value shouldBe calcDigestString(originalBytes, Algorithm.`SHA-256`)
+
+        fileId
+      }
 
     Get(s"/${fileId}") ~> core.route ~> check {
       val resContent: ByteString = responseAs[ByteString]
@@ -287,17 +300,20 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[positive] send/get with Basic Authentication") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId: String = null
 
     val getKey: String = "p4ssw0rd"
 
     val credentials1 = BasicHttpCredentials("dummy user", getKey)
-    Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be 3
-      fileId.length shouldBe 3
-    }
+
+    val fileId: String =
+      Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
 
     // Get the file without user and password
     // (from: https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/security-directives/authenticateBasic.html)
@@ -325,17 +341,19 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[negative] send/get with Basic Authentication") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId: String = null
 
     val getKey: String = "p4ssw0rd"
 
     val credentials1 = BasicHttpCredentials("dummy user", getKey)
-    Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be 3
-      fileId.length shouldBe 3
-    }
+    val fileId: String =
+      Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
 
     // Get the file with user and WRONG password
     Get(s"/${fileId}") ~> addCredentials(credentials1.copy(password = "this is wrong password!")) ~>  core.route ~> check {
@@ -346,14 +364,16 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[positive] send/get with duration") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId     : String = null
     val durationSec: Int    = 5
-    Post(s"/?duration=${durationSec}s").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be 3
-      fileId.length shouldBe 3
-    }
+    val fileId: String =
+      Post(s"/?duration=${durationSec}s").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
 
     Thread.sleep((durationSec - 2)*1000)
 
@@ -367,14 +387,16 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[negative] send/get with duration") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId     : String = null
     val durationSec: Int    = 5
-    Post(s"/?duration=${durationSec}s").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be 3
-      fileId.length shouldBe 3
-    }
+    val fileId: String =
+      Post(s"/?duration=${durationSec}s").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
 
     Thread.sleep((durationSec + 2)*1000)
 
@@ -386,14 +408,16 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[positive/negative] send/get with times") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId     : String = null
     val times      : Int    = 5
-    Post(s"/?get-times=${times}").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be 3
-      fileId.length shouldBe 3
-    }
+    val fileId: String =
+      Post(s"/?get-times=${times}").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
 
     // Success to get
     for(_ <- 1 to times){
@@ -426,13 +450,15 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
   test("[positive] send with length=100000 (too big)") {
     val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     val fileIdLength: Int    = 100000
-    var fileId: String = null
-    Post(s"/?id-length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be MaxIdLength
-      fileId.length shouldBe Setting.MaxIdLength
-    }
+    val fileId: String =
+      Post(s"/?id-length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be MaxIdLength
+        fileId.length shouldBe Setting.MaxIdLength
+
+        fileId
+      }
     Get(s"/${fileId}") ~> core.route ~> check {
       val resContent: String = responseAs[String]
       // response should be original
@@ -443,13 +469,15 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
   test("[positive] send with length=1 (too small)") {
     val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
     val fileIdLength: Int    = 1
-    var fileId: String = null
-    Post(s"/?length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be MinIdLength
-      fileId.length shouldBe Setting.MinIdLength
-    }
+    val fileId: String =
+      Post(s"/?length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be MinIdLength
+        fileId.length shouldBe Setting.MinIdLength
+
+        fileId
+      }
     Get(s"/${fileId}") ~> core.route ~> check {
       val resContent: String = responseAs[String]
       // response should be original
@@ -459,11 +487,13 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[positive] send/delete with deletable") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId: String = null
-    Post("/?deletable").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-    }
+    val fileId: String =
+      Post("/?deletable").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+
+        fileId
+      }
 
     // Delete the file
     Delete(s"/${fileId}") ~> core.route ~> check {
@@ -480,11 +510,13 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[positive] send/delete with deletable=true") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId: String = null
-    Post("/?deletable=true").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-    }
+    val fileId: String =
+      Post("/?deletable=true").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+
+        fileId
+      }
 
     // Delete the file
     Delete(s"/${fileId}") ~> core.route ~> check {
@@ -501,11 +533,13 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[positive] send/delete without deletable") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId: String = null
-    Post("/").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-    }
+    val fileId: String =
+      Post("/").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+
+        fileId
+      }
 
     // Success to delete the file
     Delete(s"/${fileId}") ~> core.route ~> check {
@@ -522,11 +556,13 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[negative] send/delete with deletable=false") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId: String = null
-    Post("/?deletable=false").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-    }
+    val fileId: String =
+      Post("/?deletable=false").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+
+        fileId
+      }
 
     // Fail to delete the file
     Delete(s"/${fileId}") ~> core.route ~> check {
@@ -546,12 +582,14 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[positive] send/delete with deletable with key") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId   : String = null
     val deleteKey: String = "mykey1234"
-    Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-    }
+    val fileId: String =
+      Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+
+        fileId
+      }
 
     // Delete the file
     Delete(s"/${fileId}?delete-key=${deleteKey}") ~> core.route ~> check {
@@ -568,12 +606,14 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[negative] send/delete with deletable with empty key") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId   : String = null
     val deleteKey: String = "mykey1234"
-    Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-    }
+    val fileId: String =
+      Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+
+        fileId
+      }
 
     // Fail to delete the file
     Delete(s"/${fileId}") ~> core.route ~> check {
@@ -592,13 +632,15 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[negative] send/delete with deletable with wrong key") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId   : String = null
     val deleteKey: String = "mykey1234"
     val wrongKey : String = "hogehoge"
-    Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-    }
+    val fileId: String =
+      Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+
+        fileId
+      }
 
     // Fail to delete the file
     Delete(s"/${fileId}?delete-key=${wrongKey}") ~> core.route ~> check {
@@ -617,17 +659,19 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[positive] send/delete with Basic Authentication") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-    var fileId: String = null
-
     val getKey: String = "p4ssw0rd"
 
     val credentials1 = BasicHttpCredentials("dummy user", getKey)
-    Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
-      // Get file ID
-      fileId = responseAs[String].trim
-      // File ID length should be 3
-      fileId.length shouldBe 3
-    }
+
+    val fileId: String =
+      Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
 
     // NOTE: Basic Authentication doesn't related to deletion
     //       related to get file only
@@ -652,15 +696,17 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     val N = 30
     var concatedFileId: String = ""
     for (_ <- 1 to N) {
-      var fileId: String = null
-      Post("/?secure-char").withEntity(originalContent) ~> core.route ~> check {
-        // Get file ID
-        fileId = responseAs[String].trim
-        // Concat file ID
-        concatedFileId += fileId
-        // File ID length should be 3
-        fileId.length shouldBe 3
-      }
+      val fileId: String =
+        Post("/?secure-char").withEntity(originalContent) ~> core.route ~> check {
+          // Get file ID
+          val fileId = responseAs[String].trim
+          // Concat file ID
+          concatedFileId += fileId
+          // File ID length should be 3
+          fileId.length shouldBe 3
+
+          fileId
+        }
 
       Get(s"/${fileId}") ~> core.route ~> check {
         // Get response file content
