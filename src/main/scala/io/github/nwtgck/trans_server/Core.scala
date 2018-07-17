@@ -425,9 +425,9 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
                 logger.error("Error in storing data", e)
                 e match {
                   case e: FileIdGenFailedException =>
-                    complete(e.getMessage)
+                    complete(StatusCodes.InternalServerError, e.getMessage)
                   case _ =>
-                    complete("Upload failed") // TODO Change response
+                    complete(StatusCodes.InternalServerError, "Upload failed")
 
                 }
             }
@@ -466,9 +466,9 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
                 logger.error("Error in storing data in multipart", e)
                 e match {
                   case e : FileIdGenFailedException =>
-                    complete(e.getMessage)
+                    complete(StatusCodes.InternalServerError, e.getMessage)
                   case _ =>
-                    complete("Upload failed") // TODO Change response
+                    complete(StatusCodes.InternalServerError, "Upload failed")
 
                 }
             }
