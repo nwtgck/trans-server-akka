@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.16.2] - 2018-07-18
+## Changed
+- Improve `/help` to use simpler commands and add CLI installation written in Go
+
+### Fixed
+- Fix error HTTP statuses
+
 ## [1.16.0] - 2018-07-16
 ### Added
 - Redirect HTTP to HTTPS when "X-Forwarded-Proto" is used (Heroku or IBM Cloud (Bluemix))
@@ -125,7 +132,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - Adapt [`sbt-native-packager`](https://github.com/sbt/sbt-native-packager) for [Heroku](https://heroku.com/)
 
 
-[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.16.0...HEAD
+[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.16.2...HEAD
+[1.16.2]: https://github.com/nwtgck/trans-server-akka/compare/v1.16.1...v1.16.2
 [1.16.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.15.1...v1.16.0
 [1.15.1]: https://github.com/nwtgck/trans-server-akka/compare/v1.15.0...v1.15.1
 [1.15.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.14.0...v1.15.0
