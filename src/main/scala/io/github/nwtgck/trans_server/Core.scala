@@ -275,34 +275,37 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
             s"""|Help for trans (${BuildInfo.version})
                 |(Repository: https://github.com/nwtgck/trans-server-akka)
                 |
+                |===== curl ======
+                |# Send  : curl ${urlStr} -T test.txt
+                |# Get   : curl ${urlStr}/a3h > mytest.txt
+                |# Delete: curl -X DELETE ${urlStr}/a3h
+                |(Suppose 'a3h' is File ID of test.txt)
+                |
                 |====== wget =====
                 |# Send  : wget -q -O - ${urlStr} --post-file=test.txt
                 |# Get   : wget ${urlStr}/a3h
                 |# Delete: wget --method=DELETE ${urlStr}/a3h
-                |('a3h' is File ID of test.txt)
-                |
-                |===== curl ======
-                |# Send  : curl ${urlStr} --data-binary @test.txt
-                |# Get   : curl ${urlStr}/a3h > mytest.txt
-                |# Delete: curl -X DELETE ${urlStr}/a3h
-                |('a3h' is File ID of test.txt)
+                |(Suppose 'a3h' is File ID of test.txt)
                 |
                 |===== Option Example =====
                 |# Send (duration: 30 sec, Download limit: once, ID length: 16, Delete key: 'mykey1234')
-                |wget -q -O - '${urlStr}/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234&secure-char' --post-file=./test.txt
+                |curl '${urlStr}/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234&secure-char' -T ./test.txt
                 |
                 |# Delete with delete key
-                |wget --method DELETE '${urlStr}/a3h?delete-key=mykey1234'
-                |
-                |
-                |------ Installation of trans-cli ------
-                |pip3 install --upgrade git+https://github.com/nwtgck/trans-cli-python@master
+                |curl -X DELETE '${urlStr}/a3h?delete-key=mykey1234'
                 |
                 |------ Tip: directory sending (zip) ------
-                |zip -q -r - ./mydir | curl -X POST ${urlStr} --data-binary @-
+                |zip -q -r - ./mydir | curl -T - ${urlStr}
                 |
                 |------ Tip: directory sending (tar.gz) ------
-                |tar zfcp - ./mydir/ | curl -X POST ${urlStr} --data-binary @-
+                |tar zfcp - ./mydir/ | curl -T - ${urlStr}
+                |
+                |------ Installation of trans-cli ------
+                |# Mac
+                |brew install nwtgck/homebrew-trans/trans
+                |
+                |# Other
+                |go get github.com/nwtgck/trans-cli-go
                 |""".stripMargin
           )
         }
