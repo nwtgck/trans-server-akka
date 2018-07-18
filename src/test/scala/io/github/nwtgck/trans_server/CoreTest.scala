@@ -72,6 +72,22 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
   }
 
+  test("[positive] top page (enable-top-page-https-redirect)") {
+    // Create a memory-base db
+    val db = Database.forConfig("h2mem-trans")
+    // Create a tables
+    Await.ready(Tables.createTablesIfNotExist(db), Duration.Inf)
+    // Temp directory for file DB
+    val tmpFileDbPath: String = Files.createTempDirectory("file_db_").toString
+    // Create a core system
+    val core = new Core(db, fileDbPath = tmpFileDbPath, enableTopPageHttpsRedirect = true)
+
+    Get("/") ~> core.route ~> check {
+      // Status should be "Permanent Redirect"
+      status shouldBe StatusCodes.PermanentRedirect
+    }
+  }
+
   test("[positive] help page") {
     Get(s"/help") ~> core.route ~> check {
       // Just check status code
