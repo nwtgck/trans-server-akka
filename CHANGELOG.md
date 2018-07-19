@@ -4,9 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
+### Added
+- Add `--db-url` to specify database URL like 'jdbc:h2:tcp://localhost/~/h2db/trans'
 
 ## [1.16.2] - 2018-07-18
-## Changed
+### Changed
 - Improve `/help` to use simpler commands and add CLI installation written in Go
 
 ### Fixed
