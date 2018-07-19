@@ -20,6 +20,7 @@ object Main {
   // Command line option
   case class TransOption(httpPort: Int,
                          httpsPortOpt: Option[Int],
+                         dbUrlOpt: Option[String],
                          enableTopPageHttpsRedirect: Boolean)
 
   // Option parser
@@ -31,6 +32,10 @@ object Main {
     opt[Int]("https-port") action {(v, option) =>
       option.copy(httpsPortOpt = Some(v))
     } text "HTTPS port (server does not use HTTPS if not specified)"
+
+    opt[String]("db-url") action {(v, option) =>
+      option.copy(dbUrlOpt = Some(v))
+    } text "Database URL (e.g. 'jdbc:h2:tcp://localhost/~/h2db/trans')"
 
     opt[Unit]("top-page-https-redirect") action {(_, option) =>
       option.copy(enableTopPageHttpsRedirect = true)
@@ -47,6 +52,7 @@ object Main {
     optParser.parse(args, TransOption(
       httpPort     = DEFAULT_HTTP_PORT,
       httpsPortOpt = None,
+      dbUrlOpt     = None,
       enableTopPageHttpsRedirect = false
     )) match {
       case Some(option) =>
@@ -57,11 +63,15 @@ object Main {
         // Logger
         val logger = Logging.getLogger(system, this)
 
-        //     Create a memory-base db
-        //    val db = Database.forConfig("h2mem-trans")
-
-        // Create a file-base db
-        val db = Database.forConfig("h2file-trans")
+        // Create db instance
+        val db = option.dbUrlOpt match {
+          case Some(dbUrl) =>
+            // Create by URL
+            Database.forURL(dbUrl, driver="org.h2.Driver")
+          case None =>
+            // Create a file-base db
+          Database.forConfig("h2file-trans")
+        }
 
         import concurrent.ExecutionContext.Implicits.global
 
