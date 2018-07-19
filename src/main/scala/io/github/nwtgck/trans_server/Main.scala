@@ -1,6 +1,6 @@
 package io.github.nwtgck.trans_server
 
-import java.io.File
+import java.io.{File, PrintWriter, StringWriter}
 
 import akka.actor.ActorSystem
 import akka.event.Logging
@@ -115,7 +115,14 @@ object Main {
           case Success(_) =>
             logger.info(s"Running server!")
           case Failure(e) =>
-            logger.error("Error in running server", e)
+            // (from: https://alvinalexander.com/scala/how-convert-stack-trace-exception-string-print-logger-logging-log4j-slf4j)
+            val stackTracesStr: String = {
+              val sw = new StringWriter()
+              e.printStackTrace(new PrintWriter(sw))
+              sw.toString
+            }
+
+            logger.error(s"Error in running server\n${stackTracesStr}", e)
         }
 
 
