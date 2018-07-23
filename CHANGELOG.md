@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 ### Added
 - Add `--db-url` to specify database URL like 'jdbc:h2:tcp://localhost/~/h2db/trans'
+- Allow users to send data via GET method
 
 ## [1.16.2] - 2018-07-18
 ### Changed
