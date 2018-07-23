@@ -296,6 +296,36 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
   }
 
+  test("[positive] send/get by GET method") {
+    val fileId1: String =
+      Get("/send?data=hello%2C%20world") ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
+
+    Get(s"/${fileId1}") ~> core.route ~> check {
+      val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe "hello, world"
+    }
+
+    // Send data with option
+    val idLenght: Int = 16
+    val data: String = "hello"
+    Get(s"/send?data=${data}&id-length=${idLenght}") ~> core.route ~> check {
+      // Get file ID
+      val fileId = responseAs[String].trim
+      // File ID length should be the specified value
+      fileId.length shouldBe idLenght
+      fileId
+    }
+
+  }
+
 
   test("[positive] send/get big data") {
 
