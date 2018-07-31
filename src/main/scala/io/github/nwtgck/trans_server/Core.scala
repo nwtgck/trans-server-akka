@@ -228,6 +228,36 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
     )
   }
 
+  // Store byteSource and return HTTP response
+  private def sendingRoute(byteSource: Source[ByteString, _])(implicit ec: ExecutionContext): Route = {
+    import akka.http.scaladsl.server.Directives._
+
+    processParamsRoute { params => // Process parameters
+      // Store bytes to DB
+      val storeFut: Future[(FileId, Digest[Algorithm.`MD5`.type], Digest[Algorithm.`SHA-1`.type], Digest[Algorithm.`SHA-256`.type])] =
+        storeBytes(byteSource, params.duration, params.getKeyOpt, params.nGetLimitOpt, params.idLengthOpt, params.isDeletable, params.deleteKeyOpt, params.usesSecureChar)
+
+      onComplete(storeFut) {
+        case Success((fileId, md5Digest, sha1Digest, sha256Digest)) =>
+          respondWithHeaders(
+            headers.RawHeader(Setting.Md5HttpHeaderName, md5Digest.value),
+            headers.RawHeader(Setting.Sha1HttpHeaderName, sha1Digest.value),
+            headers.RawHeader(Setting.Sha256HttpHeaderName, sha256Digest.value)
+          ) {
+            complete(s"${fileId.value}\n")
+          }
+        case Failure(e) =>
+          logger.error("Error in storing data", e)
+          e match {
+            case e: FileIdGenFailedException =>
+              complete(StatusCodes.InternalServerError, e.getMessage)
+            case _ =>
+              complete(StatusCodes.InternalServerError, "Upload failed")
+          }
+      }
+    }
+  }
+
   /**
     * Http Server's Routing
     */
@@ -310,6 +340,17 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
           )
         }
 
+      } ~
+      // Send data via GET method
+      path(Setting.GetRouteName.Send) {
+        parameter("data".?) {dataStrOpt =>
+          // ByteString data
+          val data: ByteString = dataStrOpt.map(ByteString(_)).getOrElse(ByteString.empty)
+          // Store the data and return a response
+          sendingRoute(
+            Source.single(data)
+          )
+        }
       } ~
       path(RemainingPath) { path =>
         // Get file ID string
@@ -406,42 +447,19 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
     } ~
     {
       // Route of sending
-      val sendingRoute: Route = processParamsRoute { params => // Process parameters
+      val sendingRouteWithBody: Route =
         // Get a file from client and store it
         // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
         withoutSizeLimit {
           extractDataBytes { bytes =>
-            // Store bytes to DB
-            val storeFut: Future[(FileId, Digest[Algorithm.`MD5`.type], Digest[Algorithm.`SHA-1`.type], Digest[Algorithm.`SHA-256`.type])] =
-              storeBytes(bytes, params.duration, params.getKeyOpt, params.nGetLimitOpt, params.idLengthOpt, params.isDeletable, params.deleteKeyOpt, params.usesSecureChar)
-
-            onComplete(storeFut) {
-              case Success((fileId, md5Digest, sha1Digest, sha256Digest)) =>
-                respondWithHeaders(
-                  headers.RawHeader(Setting.Md5HttpHeaderName, md5Digest.value),
-                  headers.RawHeader(Setting.Sha1HttpHeaderName, sha1Digest.value),
-                  headers.RawHeader(Setting.Sha256HttpHeaderName, sha256Digest.value)
-                ){
-                  complete(s"${fileId.value}\n")
-                }
-              case Failure(e) =>
-                logger.error("Error in storing data", e)
-                e match {
-                  case e: FileIdGenFailedException =>
-                    complete(StatusCodes.InternalServerError, e.getMessage)
-                  case _ =>
-                    complete(StatusCodes.InternalServerError, "Upload failed")
-
-                }
-            }
+            sendingRoute(bytes)
           }
         }
-      }
 
       // Send by POST
-      (post & pathSingleSlash)(sendingRoute) ~
+      (post & pathSingleSlash)(sendingRouteWithBody) ~
       // Send by PUT
-      (put & path(Remaining))(_ => sendingRoute)
+      (put & path(Remaining))(_ => sendingRouteWithBody)
     } ~
     // "Post /" for client-sending a file
     (post & path("multipart")) {

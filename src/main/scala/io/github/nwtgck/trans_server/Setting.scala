@@ -33,11 +33,13 @@ object Setting {
   object GetRouteName{
     val Help     : String = "help"
     val Version  : String = "version"
+    val Send     : String = "send"
 
     // Reserved route names
     val allSet   : Set[String] = Set(
       Help,
-      Version
+      Version,
+      Send
     )
   }
 }
