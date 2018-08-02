@@ -526,7 +526,9 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
       (post & path(Remaining)){ fileIdStr => sendingRouteWithBody(specifiedFileIdOpt = Some(FileId(fileIdStr)))} ~
       // Send by PUT
       (put & path(RemainingPath)){path =>
-        sendingRouteWithBody(specifiedFileIdOpt = None)
+        // (e.g. In case of "/hogehoge.txt/abc1234", "abc1234" is a specified File ID)
+        val specifiedFileIdOpt: Option[FileId] = Try(FileId(path.tail.tail.head.toString)).toOption
+        sendingRouteWithBody(specifiedFileIdOpt = specifiedFileIdOpt)
       }
     } ~
     // Delete file by ID
