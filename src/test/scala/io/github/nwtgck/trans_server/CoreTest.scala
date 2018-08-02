@@ -154,6 +154,58 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
   }
 
+  test("[positive] send/get by specifying File ID") {
+
+    val fileId: String = "myfileid123"
+
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+    Post(s"/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+      // Get file ID
+      val resFileId = responseAs[String].trim
+      // Response of File ID should be the specified File ID
+      resFileId shouldBe fileId
+    }
+
+    Get(s"/${fileId}") ~> core.route ~> check {
+      val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe originalContent
+    }
+  }
+
+  test("[negative] send/get by specifying SHORT File ID") {
+    val fileId: String = "abc"
+    require(fileId.length < Setting.minSpecifiedFileIdLength)
+
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+    Post(s"/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+      // TODO: Change error to proper one
+      status shouldBe StatusCodes.InternalServerError
+    }
+  }
+
+  test("[negative] send/get by specifying DUPLICATE File ID") {
+    val fileId: String = "myfileid123"
+
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+    Post(s"/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+      // Get file ID
+      val resFileId = responseAs[String].trim
+      // Response of File ID should be the specified File ID
+      resFileId shouldBe fileId
+    }
+
+    // NOTE: Send twice by the same File ID
+    Post(s"/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+      // TODO: Change error to proper one
+      status shouldBe StatusCodes.InternalServerError
+    }
+  }
+
+
   test("[positive] send/get by multipart") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
