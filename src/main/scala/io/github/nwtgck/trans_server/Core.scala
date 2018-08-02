@@ -367,16 +367,22 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
 
       } ~
       // Send data via GET method
-      // TODO: Impl File ID fixation for /send routing
-      path(Setting.GetRouteName.Send) {
-        parameter("data".?) {dataStrOpt =>
-          // ByteString data
-          val data: ByteString = dataStrOpt.map(ByteString(_)).getOrElse(ByteString.empty)
-          // Store the data and return a response
-          sendingRoute(
-            Source.single(data),
-            specifiedFileIdOpt = None
-          )
+      {
+        def sendRoute(specifiedFileIdOpt: Option[FileId]): Route =
+          parameter("data".?) {dataStrOpt =>
+            // ByteString data
+            val data: ByteString = dataStrOpt.map(ByteString(_)).getOrElse(ByteString.empty)
+            // Store the data and return a response
+            sendingRoute(
+              Source.single(data),
+              specifiedFileIdOpt = specifiedFileIdOpt
+            )
+          }
+        path(Setting.GetRouteName.Send) {
+          sendRoute(specifiedFileIdOpt = None)
+        } ~
+        path(Setting.GetRouteName.Send / Remaining) { fileIdStr =>
+          sendRoute(specifiedFileIdOpt = Some(FileId(fileIdStr)))
         }
       } ~
       path(RemainingPath) { path =>
