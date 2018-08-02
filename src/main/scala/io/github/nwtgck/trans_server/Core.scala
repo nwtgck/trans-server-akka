@@ -472,26 +472,6 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
       }
 
     } ~
-    {
-      // Route of sending
-      def sendingRouteWithBody(specifiedFileIdOpt: Option[FileId]): Route =
-        // Get a file from client and store it
-        // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
-        withoutSizeLimit {
-          extractDataBytes { bytes =>
-            sendingRoute(bytes, specifiedFileIdOpt)
-          }
-        }
-
-      // Send by POST
-      (post & pathSingleSlash)(sendingRouteWithBody(specifiedFileIdOpt = None)) ~
-      // Send by POST by specifing File ID
-      (post & path(Remaining)){ fileIdStr => sendingRouteWithBody(specifiedFileIdOpt = Some(FileId(fileIdStr)))} ~
-      // Send by PUT
-      (put & path(RemainingPath)){path =>
-        sendingRouteWithBody(specifiedFileIdOpt = None)
-      }
-    } ~
     // "Post /" for client-sending a file
     (post & path("multipart")) {
       // Process GET Parameters
@@ -527,6 +507,26 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
           }
 
         }
+      }
+    } ~
+    {
+      // Route of sending
+      def sendingRouteWithBody(specifiedFileIdOpt: Option[FileId]): Route =
+        // Get a file from client and store it
+        // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
+        withoutSizeLimit {
+          extractDataBytes { bytes =>
+            sendingRoute(bytes, specifiedFileIdOpt)
+          }
+        }
+
+      // Send by POST
+      (post & pathSingleSlash)(sendingRouteWithBody(specifiedFileIdOpt = None)) ~
+      // Send by POST by specifing File ID
+      (post & path(Remaining)){ fileIdStr => sendingRouteWithBody(specifiedFileIdOpt = Some(FileId(fileIdStr)))} ~
+      // Send by PUT
+      (put & path(RemainingPath)){path =>
+        sendingRouteWithBody(specifiedFileIdOpt = None)
       }
     } ~
     // Delete file by ID

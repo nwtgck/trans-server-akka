@@ -187,7 +187,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
   }
 
   test("[negative] send/get by specifying DUPLICATE File ID") {
-    val fileId: String = "myfileid123"
+    val fileId: String = "myfileid1234"
 
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
