@@ -28,8 +28,10 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
   implicit def defaultTimeout(implicit system: ActorSystem): RouteTestTimeout = RouteTestTimeout(5.second)
 
   before {
-    // Create a memory-base db
-    db = Database.forConfig("h2mem-trans")
+    // Temp directory for file DB
+    val tmpDbPath: String = Files.createTempDirectory("db_").toString
+    // Create a file-base db
+    db = Database.forURL(s"jdbc:h2:${tmpDbPath}", driver="org.h2.Driver")
     // Create a tables
     Await.ready(Tables.createTablesIfNotExist(db), Duration.Inf)
     // Temp directory for file DB
@@ -187,7 +189,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[negative] send/get by specifying INVALID File ID") {
     // NOTE: File ID contains invalid character
-    val fileId: String = "myfileid~1234"
+    val fileId: String = "myfileid~123"
 
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
@@ -197,7 +199,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
   }
 
   test("[negative] send/get by specifying DUPLICATE File ID") {
-    val fileId: String = "myfileid1234"
+    val fileId: String = "myfileid123"
 
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
@@ -359,7 +361,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[positive] send/get by PUT specifying File ID") {
 
-    val fileId: String = "myfileid12345"
+    val fileId: String = "myfileid123"
 
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
@@ -433,7 +435,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
   test("[positive] send/get by GET method specifying File ID") {
 
-    val fileId: String = "myfileid123456"
+    val fileId: String = "myfileid123"
 
     Get(s"/send/${fileId}?data=hello%2C%20world") ~> core.route ~> check {
       // Get file ID
