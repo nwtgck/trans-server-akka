@@ -182,20 +182,28 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
     specifiedFileIdOpt match {
       // If file ID is specified
       case Some(fileId) =>
-        // TODO: Notify the following error to users
-        // Length of specified File ID should be equal or greater than `minSpecifiedFileIdLength`
-        require(fileId.value.length >= Setting.minSpecifiedFileIdLength)
-        // File ID value should be in candidate characters
-        require(fileId.value.forall((Setting.candidateChars ++ Setting.secureCandidateChars).contains(_)))
-
-        val storeFilePath: String = generateStoreFilePath(fileId)
-        if(new File(storeFilePath).exists()){
-          Future.failed(
-            // NOTE: This information is OK to tell users because users can know whether File ID exists by HEAD method easily.
-            new Exception(s"'${fileId.value}' is already used")
+        for{
+          // Length of specified File ID should be equal or greater than `minSpecifiedFileIdLength`
+          _ <- Util.requireFuture(
+            fileId.value.length >= Setting.minSpecifiedFileIdLength,
+            new InvalidUseException(s"Length of File ID '${fileId.value}' should >= ${Setting.minSpecifiedFileIdLength}.")
           )
-        } else {
-          store(fileId, storeFilePath)
+          // File ID value should be in candidate characters
+          _ <- Util.requireFuture(
+            fileId.value.forall((Setting.candidateChars ++ Setting.secureCandidateChars).contains(_)),
+            new InvalidUseException(s"File ID '${fileId.value}' contains invalid characters.")
+          )
+          // Generate store-path
+          storeFilePath: String = generateStoreFilePath(fileId)
+          // If already used File ID
+          _  <- Util.requireFuture(
+            !new File(storeFilePath).exists(),
+            new InvalidUseException(s"File ID '${fileId.value}' is already used.")
+          )
+          // Store
+          res <- store(fileId, storeFilePath)
+        } yield {
+          res
         }
       case _ =>
         // Get ID length
@@ -276,6 +284,8 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
           e match {
             case e: FileIdGenFailedException =>
               complete(StatusCodes.InternalServerError, e.getMessage)
+            case e: InvalidUseException =>
+              complete(StatusCodes.BadRequest, s"${e.getMessage}\n")
             case _ =>
               complete(StatusCodes.InternalServerError, "Upload failed")
           }

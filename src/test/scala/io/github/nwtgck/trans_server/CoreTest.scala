@@ -181,8 +181,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
     Post(s"/${fileId}").withEntity(originalContent) ~> core.route ~> check {
-      // TODO: Change error to proper one
-      status shouldBe StatusCodes.InternalServerError
+      status shouldBe StatusCodes.BadRequest
     }
   }
 
@@ -200,8 +199,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
     // NOTE: Send twice by the same File ID
     Post(s"/${fileId}").withEntity(originalContent) ~> core.route ~> check {
-      // TODO: Change error to proper one
-      status shouldBe StatusCodes.InternalServerError
+      status shouldBe StatusCodes.BadRequest
     }
   }
 
