@@ -29,6 +29,8 @@ object Setting {
   val Md5HttpHeaderName    : String           = "X-FILE-MD5"
   val Sha1HttpHeaderName   : String           = "X-FILE-SHA1"
   val Sha256HttpHeaderName : String           = "X-FILE-SHA256"
+  // Path name to specify File ID
+  val fileIdFixationPathName : String         = "fix"
 
   // Reserved route name of GET request
   object GetRouteName{

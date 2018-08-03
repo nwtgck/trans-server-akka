@@ -162,7 +162,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
-    Post(s"/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+    Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       val resFileId = responseAs[String].trim
       // Response of File ID should be the specified File ID
@@ -182,7 +182,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
-    Post(s"/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+    Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
       status shouldBe StatusCodes.BadRequest
     }
   }
@@ -193,7 +193,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
-    Post(s"/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+    Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
       status shouldBe StatusCodes.BadRequest
     }
   }
@@ -203,7 +203,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
-    Post(s"/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+    Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       val resFileId = responseAs[String].trim
       // Response of File ID should be the specified File ID
@@ -211,7 +211,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
 
     // NOTE: Send twice by the same File ID
-    Post(s"/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+    Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
       status shouldBe StatusCodes.BadRequest
     }
   }
@@ -365,7 +365,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
-    Put(s"/dummy/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+    Put(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
       // Get file ID
       val resFileId = responseAs[String].trim
       // Response of File ID should be the specified File ID
@@ -437,7 +437,7 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
 
     val fileId: String = "myfileid123"
 
-    Get(s"/send/${fileId}?data=hello%2C%20world") ~> core.route ~> check {
+    Get(s"/send/fix/${fileId}?data=hello%2C%20world") ~> core.route ~> check {
       // Get file ID
       val resFileId = responseAs[String].trim
       // Response of File ID should be the specified File ID

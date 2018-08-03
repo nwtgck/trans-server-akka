@@ -391,7 +391,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
         path(Setting.GetRouteName.Send) {
           sendRoute(specifiedFileIdOpt = None)
         } ~
-        path(Setting.GetRouteName.Send / Remaining) { fileIdStr =>
+        path(Setting.GetRouteName.Send / Setting.fileIdFixationPathName / Remaining) { fileIdStr =>
           sendRoute(specifiedFileIdOpt = Some(FileId(fileIdStr)))
         }
       } ~
@@ -539,12 +539,14 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
       // Send by POST
       (post & pathSingleSlash)(sendingRouteWithBody(specifiedFileIdOpt = None)) ~
       // Send by POST by specifing File ID
-      (post & path(Remaining)){ fileIdStr => sendingRouteWithBody(specifiedFileIdOpt = Some(FileId(fileIdStr)))} ~
+      (post & path(Setting.fileIdFixationPathName / Remaining)){ fileIdStr => sendingRouteWithBody(specifiedFileIdOpt = Some(FileId(fileIdStr)))} ~
+      // Send by PUT by specifying File ID
+      (put & path(Setting.fileIdFixationPathName / Remaining)){ fileIdStr =>
+        sendingRouteWithBody(specifiedFileIdOpt = Some(FileId(fileIdStr)))
+      } ~
       // Send by PUT
-      (put & path(RemainingPath)){path =>
-        // (e.g. In case of "/hogehoge.txt/abc1234", "abc1234" is a specified File ID)
-        val specifiedFileIdOpt: Option[FileId] = Try(FileId(path.tail.tail.head.toString)).toOption
-        sendingRouteWithBody(specifiedFileIdOpt = specifiedFileIdOpt)
+      (put & path(RemainingPath)){_ =>
+        sendingRouteWithBody(specifiedFileIdOpt = None)
       }
     } ~
     // Delete file by ID
