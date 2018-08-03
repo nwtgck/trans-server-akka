@@ -18,6 +18,7 @@ object Setting {
   val DefaultIdLength      : Int             = 3
   val MinIdLength          : Int             = 3
   val MaxIdLength          : Int             = 128
+  val minSpecifiedFileIdLength : Int         = 5
   val KeySalt              : String          = "ymiKicjOq5M3yIMmVBEPFcLnkNxJ4n2iY9ms3fYRsBDS3wZvS1lev9ToLnZhlj3O"
   val FileEncryptionKey    : String          = "vKOhINCMuO47xxel" // NOTE: Its length should be 16
   val FileIdGenTryLimit    : Int             = 500 // NOTE: Simple study shows 500 is enough (https://github.com/nwtgck/random-str-collision-graph-scala)
@@ -28,6 +29,8 @@ object Setting {
   val Md5HttpHeaderName    : String           = "X-FILE-MD5"
   val Sha1HttpHeaderName   : String           = "X-FILE-SHA1"
   val Sha256HttpHeaderName : String           = "X-FILE-SHA256"
+  // Path name to specify File ID
+  val fileIdFixationPathName : String         = "fix"
 
   // Reserved route name of GET request
   object GetRouteName{

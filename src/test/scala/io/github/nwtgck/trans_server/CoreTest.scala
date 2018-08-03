@@ -28,8 +28,10 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
   implicit def defaultTimeout(implicit system: ActorSystem): RouteTestTimeout = RouteTestTimeout(5.second)
 
   before {
-    // Create a memory-base db
-    db = Database.forConfig("h2mem-trans")
+    // Temp directory for file DB
+    val tmpDbPath: String = Files.createTempDirectory("db_").toString
+    // Create a file-base db
+    db = Database.forURL(s"jdbc:h2:${tmpDbPath}", driver="org.h2.Driver")
     // Create a tables
     Await.ready(Tables.createTablesIfNotExist(db), Duration.Inf)
     // Temp directory for file DB
@@ -153,6 +155,67 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       resContent shouldBe originalContent
     }
   }
+
+  test("[positive] send/get by specifying File ID") {
+
+    val fileId: String = "myfileid123"
+
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+    Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+      // Get file ID
+      val resFileId = responseAs[String].trim
+      // Response of File ID should be the specified File ID
+      resFileId shouldBe fileId
+    }
+
+    Get(s"/${fileId}") ~> core.route ~> check {
+      val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe originalContent
+    }
+  }
+
+  test("[negative] send/get by specifying SHORT File ID") {
+    val fileId: String = "abc"
+    require(fileId.length < Setting.minSpecifiedFileIdLength)
+
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+    Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+      status shouldBe StatusCodes.BadRequest
+    }
+  }
+
+  test("[negative] send/get by specifying INVALID File ID") {
+    // NOTE: File ID contains invalid character
+    val fileId: String = "myfileid~123"
+
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+    Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+      status shouldBe StatusCodes.BadRequest
+    }
+  }
+
+  test("[negative] send/get by specifying DUPLICATE File ID") {
+    val fileId: String = "myfileid123"
+
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+    Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+      // Get file ID
+      val resFileId = responseAs[String].trim
+      // Response of File ID should be the specified File ID
+      resFileId shouldBe fileId
+    }
+
+    // NOTE: Send twice by the same File ID
+    Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+      status shouldBe StatusCodes.BadRequest
+    }
+  }
+
 
   test("[positive] send/get by multipart") {
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
@@ -296,6 +359,26 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
   }
 
+  test("[positive] send/get by PUT specifying File ID") {
+
+    val fileId: String = "myfileid123"
+
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+    Put(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+      // Get file ID
+      val resFileId = responseAs[String].trim
+      // Response of File ID should be the specified File ID
+      resFileId shouldBe fileId
+    }
+
+    Get(s"/${fileId}") ~> core.route ~> check {
+      val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe originalContent
+    }
+  }
+
   test("[positive] send/get by GET method") {
     val fileId1: String =
       Get("/send?data=hello%2C%20world") ~> core.route ~> check {
@@ -347,6 +430,24 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       val resContent: String = responseAs[String]
       // response should be original
       resContent shouldBe longData
+    }
+  }
+
+  test("[positive] send/get by GET method specifying File ID") {
+
+    val fileId: String = "myfileid123"
+
+    Get(s"/send/fix/${fileId}?data=hello%2C%20world") ~> core.route ~> check {
+      // Get file ID
+      val resFileId = responseAs[String].trim
+      // Response of File ID should be the specified File ID
+      resFileId shouldBe fileId
+    }
+
+    Get(s"/${fileId}") ~> core.route ~> check {
+      val resContent: String = responseAs[String]
+      // response should be original
+      resContent shouldBe "hello, world"
     }
   }
 
