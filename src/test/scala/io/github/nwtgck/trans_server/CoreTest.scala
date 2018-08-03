@@ -185,6 +185,17 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
   }
 
+  test("[negative] send/get by specifying INVALID File ID") {
+    // NOTE: File ID contains invalid character
+    val fileId: String = "myfileid~1234"
+
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+    Post(s"/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+      status shouldBe StatusCodes.BadRequest
+    }
+  }
+
   test("[negative] send/get by specifying DUPLICATE File ID") {
     val fileId: String = "myfileid1234"
 
