@@ -1,6 +1,6 @@
 package io.github.nwtgck.trans_server
 
-import java.io.{File, PrintWriter, StringWriter}
+import java.io.File
 
 import akka.actor.ActorSystem
 import akka.event.Logging
@@ -10,7 +10,7 @@ import scopt.OptionParser
 import slick.driver.H2Driver.api._
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 /**
   * Created by Ryo on 2017/04/23.
@@ -125,14 +125,7 @@ object Main {
           case Success(_) =>
             logger.info(s"Running server!")
           case Failure(e) =>
-            // (from: https://alvinalexander.com/scala/how-convert-stack-trace-exception-string-print-logger-logging-log4j-slf4j)
-            val stackTracesStr: String = {
-              val sw = new StringWriter()
-              e.printStackTrace(new PrintWriter(sw))
-              sw.toString
-            }
-
-            logger.error(s"Error in running server\n${stackTracesStr}", e)
+            logger.error(s"Error in running server\n${Util.getStackTraceString(e)}", e)
         }
 
 

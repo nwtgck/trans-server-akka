@@ -1,6 +1,6 @@
 package io.github.nwtgck.trans_server
 
-import java.io.{FileInputStream, InputStream}
+import java.io.{FileInputStream, InputStream, PrintWriter, StringWriter}
 import java.security.{KeyStore, SecureRandom}
 import java.util.Base64
 
@@ -137,5 +137,17 @@ object Util {
     } else {
       Future.failed(exception)
     }
+  }
+
+  /**
+    * Generate stack trace string
+    * (from: https://alvinalexander.com/scala/how-convert-stack-trace-exception-string-print-logger-logging-log4j-slf4j)
+    * @param e
+    * @return
+    */
+  def getStackTraceString(e: Throwable): String = {
+    val sw = new StringWriter()
+    e.printStackTrace(new PrintWriter(sw))
+    sw.toString
   }
 }

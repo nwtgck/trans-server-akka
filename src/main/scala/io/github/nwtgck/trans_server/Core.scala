@@ -140,7 +140,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
 
       // Remove file if failed
       storeFuture.onFailure{case e =>
-        logger.error("Error in store", e)
+        logger.error(s"Error in store: ${Util.getStackTraceString(e)}", e)
         logger.debug(s"Deleting '${storeFilePath}'...")
         val res: Boolean = new File(storeFilePath).delete()
         logger.debug(s"Deleted(${fileId.value}): ${res}")
@@ -285,7 +285,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
             complete(s"${fileId.value}\n")
           }
         case Failure(e) =>
-          logger.error("Error in storing data", e)
+          logger.error(s"Error in storing data: ${Util.getStackTraceString(e)}", e)
           e match {
             case e: FileIdGenFailedException =>
               complete(StatusCodes.InternalServerError, e.getMessage)
@@ -516,7 +516,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
               case Success(fileIds) =>
                 complete(fileIds.map(_.value).mkString("\n"))
               case Failure(e) =>
-                logger.error("Error in storing data in multipart", e)
+                logger.error(s"Error in storing data in multipart: ${Util.getStackTraceString(e)}", e)
                 e match {
                   case e : FileIdGenFailedException =>
                     complete(StatusCodes.InternalServerError, e.getMessage)
@@ -747,7 +747,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
           try {
             new File(file.storePath).delete()
           } catch {case e: Throwable =>
-            logger.error("Error in file deletion", e)
+            logger.error(s"Error in file deletion: ${Util.getStackTraceString(e)}", e)
           }
         }
       }
