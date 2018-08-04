@@ -176,9 +176,20 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     }
   }
 
-  test("[negative] send/get by specifying SHORT File ID") {
+  test("[negative] send/get by specifying too SHORT File ID") {
     val fileId: String = "abc"
     require(fileId.length < Setting.minSpecifiedFileIdLength)
+
+    val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+    Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+      status shouldBe StatusCodes.BadRequest
+    }
+  }
+
+  test("[negative] send/get by specifying too LONG File ID") {
+    val fileId: String = "a" * 500
+    require(fileId.length > Setting.MaxIdLength)
 
     val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 

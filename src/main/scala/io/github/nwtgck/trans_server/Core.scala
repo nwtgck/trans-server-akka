@@ -188,6 +188,11 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
             fileId.value.length >= Setting.minSpecifiedFileIdLength,
             new InvalidUseException(s"Length of File ID '${fileId.value}' should >= ${Setting.minSpecifiedFileIdLength}.")
           )
+          // Length of specified File ID should be equal or less than `MaxIdLength`
+          _ <- Util.requireFuture(
+            fileId.value.length <= Setting.MaxIdLength,
+            new InvalidUseException(s"Length of File ID '${fileId.value}' should >= ${Setting.MaxIdLength}.")
+          )
           // File ID value should be in candidate characters
           _ <- Util.requireFuture(
             fileId.value.forall((Setting.candidateChars ++ Setting.secureCandidateChars).contains(_)),
