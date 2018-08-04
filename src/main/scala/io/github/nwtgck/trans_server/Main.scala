@@ -117,7 +117,7 @@ object Main {
                 Http().bindAndHandle(core.route, HOST, httpsPort, connectionContext = httpsConnectionContext).map(_ =>
                   logger.info(s"Listening HTTPS on ${httpsPort}...")
                 )
-              case None =>
+              case _ =>
                 Future.successful()
             }
           }
