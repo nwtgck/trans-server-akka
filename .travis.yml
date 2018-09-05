@@ -4,7 +4,7 @@ language: scala
 script:
   # sbt test
   - sbt clean coverage test
-  # working-test of `sbt assembly`
+  # Generate a fat jar file
   - sbt assembly
   # working-test of `sbt dist`
   - sbt dist
