@@ -1,6 +1,6 @@
 package io.github.nwtgck.trans_server
 
-import java.io.{FileInputStream, InputStream}
+import java.io.{FileInputStream, InputStream, PrintWriter, StringWriter}
 import java.security.{KeyStore, SecureRandom}
 import java.util.Base64
 
@@ -9,6 +9,8 @@ import akka.http.scaladsl.server.Directives.extractRequest
 import akka.http.scaladsl.server.{Directive, Directive1, Route}
 import akka.http.scaladsl.{ConnectionContext, HttpsConnectionContext}
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
+
+import scala.concurrent.Future
 
 object Util {
   // Generate hashed key
@@ -121,5 +123,31 @@ object Util {
           route
       }
     }
+  }
+
+  /**
+    * If not satisfying cond, Future is failed
+    * @param cond
+    * @param exception
+    * @return
+    */
+  def requireFuture(cond: Boolean, exception: => Exception): Future[Unit] = {
+    if(cond){
+      Future.successful(())
+    } else {
+      Future.failed(exception)
+    }
+  }
+
+  /**
+    * Generate stack trace string
+    * (from: https://alvinalexander.com/scala/how-convert-stack-trace-exception-string-print-logger-logging-log4j-slf4j)
+    * @param e
+    * @return
+    */
+  def getStackTraceString(e: Throwable): String = {
+    val sw = new StringWriter()
+    e.printStackTrace(new PrintWriter(sw))
+    sw.toString
   }
 }

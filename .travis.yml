@@ -4,13 +4,22 @@ language: scala
 script:
   # sbt test
   - sbt clean coverage test
-  # working-test of `sbt assembly`
+  # Generate a fat jar file
   - sbt assembly
   # working-test of `sbt dist`
   - sbt dist
 
 after_success:
   - sbt coverageReport coveralls
+
+# (from: https://docs.travis-ci.com/user/deployment/releases/)
+deploy:
+  provider: releases
+  api_key: $GITHUB_TOKEN
+  file: $TRAVIS_BUILD_DIR/target/scala-2.11/trans-server-akka.jar
+  skip_cleanup: true
+  on:
+    tags: true
 
 # (from: http://www.scala-sbt.org/1.0/docs/Travis-CI-with-sbt.html)
 before_cache:

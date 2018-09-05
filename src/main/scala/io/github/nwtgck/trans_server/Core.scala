@@ -53,7 +53,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
   // (from: https://qiita.com/suin/items/bfff121c8481990e1507)
   private val secureRandom: Random = new Random(new java.security.SecureRandom())
 
-  def storeBytes(byteSource: Source[ByteString, Any], duration: FiniteDuration, getKeyOpt: Option[String], nGetLimitOpt: Option[Int], idLengthOpt: Option[Int], isDeletable: Boolean, deleteKeyOpt: Option[String], usesSecureChar: Boolean)(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[(FileId, Digest[Algorithm.`MD5`.type], Digest[Algorithm.`SHA-1`.type], Digest[Algorithm.`SHA-256`.type])] = {
+  def storeBytes(byteSource: Source[ByteString, Any], specifiedFileIdOpt: Option[FileId], duration: FiniteDuration, getKeyOpt: Option[String], nGetLimitOpt: Option[Int], idLengthOpt: Option[Int], isDeletable: Boolean, deleteKeyOpt: Option[String], usesSecureChar: Boolean)(implicit ec: ExecutionContext, materializer: ActorMaterializer): Future[(FileId, Digest[Algorithm.`MD5`.type], Digest[Algorithm.`SHA-1`.type], Digest[Algorithm.`SHA-256`.type])] = {
 
     if(false) {// NOTE: if-false outed
       require(
@@ -64,68 +64,58 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
 
     import TimestampUtil.RichTimestampImplicit._
 
-    // Get ID length
-    val idLength: Int =
-      idLengthOpt
-        .getOrElse(Setting.DefaultIdLength)
-        .max(Setting.MinIdLength)
-        .min(Setting.MaxIdLength)
-    logger.debug(s"idLength: ${idLength}")
+    def store(fileId: FileId, storeFilePath: String) = {
+      // Adjust duration (big duration is not good)
+      val adjustedDuration: FiniteDuration = duration.min(Setting.MaxStoreDuration)
+      logger.debug(s"adjustedDuration: ${adjustedDuration}")
 
-    // Generate File ID and storeFilePath
-    generateNoDuplicatedFiledIdAndStorePathOpt(idLength, usesSecureChar) match {
-      case Some((fileId, storeFilePath)) => {
-        // Adjust duration (big duration is not good)
-        val adjustedDuration: FiniteDuration = duration.min(Setting.MaxStoreDuration)
-        logger.debug(s"adjustedDuration: ${adjustedDuration}")
+      logger.debug(s"isDeletable: ${isDeletable}")
 
-        logger.debug(s"isDeletable: ${isDeletable}")
+      // Generate hashed get-key
+      val hashedGetKeyOpt: Option[String] =
+        getKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
 
-        // Generate hashed get-key
-        val hashedGetKeyOpt: Option[String] =
-          getKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
-
-        // Generate hashed delete key
-        val hashedDeleteKeyOpt: Option[String] =
-          if(isDeletable)
-            deleteKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
-          else
-            None
+      // Generate hashed delete key
+      val hashedDeleteKeyOpt: Option[String] =
+        if(isDeletable)
+          deleteKeyOpt.map(key => Util.generateHashedKey1(key, Setting.KeySalt))
+        else
+          None
 
 
-        // Create a file-store graph
-        val storeGraph: RunnableGraph[Future[(IOResult, Long, Digest[Algorithm.`MD5`.type], Digest[Algorithm.`SHA-1`.type], Digest[Algorithm.`SHA-256`.type])]] = {
+      // Create a file-store graph
+      val storeGraph: RunnableGraph[Future[(IOResult, Long, Digest[Algorithm.`MD5`.type], Digest[Algorithm.`SHA-1`.type], Digest[Algorithm.`SHA-256`.type])]] = {
 
-          // Store file
-          val fileStoreSink: Sink[ByteString, Future[IOResult]] =
-            FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE))
+        // Store file
+        val fileStoreSink: Sink[ByteString, Future[IOResult]] =
+          FileIO.toPath(new File(storeFilePath).toPath, options = Set(StandardOpenOption.WRITE, StandardOpenOption.CREATE))
 
-          // Calc length of ByteString
-          val lengthSink   : Sink[ByteString, Future[Long]] =
-            Sink.fold(0l)(_ + _.length)
+        // Calc length of ByteString
+        val lengthSink   : Sink[ByteString, Future[Long]] =
+          Sink.fold(0l)(_ + _.length)
 
-          // Sink for calculating MD5
-          val md5Sink: Sink[ByteString, Future[Digest[Algorithm.`MD5`.type]]] =
-            Flow.fromGraph(new DigestCalculator(Algorithm.`MD5`)).toMat(Sink.head)(Keep.right)
+        // Sink for calculating MD5
+        val md5Sink: Sink[ByteString, Future[Digest[Algorithm.`MD5`.type]]] =
+          Flow.fromGraph(new DigestCalculator(Algorithm.`MD5`)).toMat(Sink.head)(Keep.right)
 
-          // Sink for calculating SHA-1
-          val sha1Sink: Sink[ByteString, Future[Digest[Algorithm.`SHA-1`.type]]] =
-            Flow.fromGraph(new DigestCalculator(Algorithm.`SHA-1`)).toMat(Sink.head)(Keep.right)
+        // Sink for calculating SHA-1
+        val sha1Sink: Sink[ByteString, Future[Digest[Algorithm.`SHA-1`.type]]] =
+          Flow.fromGraph(new DigestCalculator(Algorithm.`SHA-1`)).toMat(Sink.head)(Keep.right)
 
-          // Sink for calculating SHA-256
-          val sha256Sink: Sink[ByteString, Future[Digest[Algorithm.`SHA-256`.type]]] =
-            Flow.fromGraph(new DigestCalculator(Algorithm.`SHA-256`)).toMat(Sink.head)(Keep.right)
+        // Sink for calculating SHA-256
+        val sha256Sink: Sink[ByteString, Future[Digest[Algorithm.`SHA-256`.type]]] =
+          Flow.fromGraph(new DigestCalculator(Algorithm.`SHA-256`)).toMat(Sink.head)(Keep.right)
 
-          // Zip 5 futures
-          def futureZip5[A, B, C, D, E](aFut: Future[A], bFut: Future[B], cFut: Future[C], dFut: Future[D], eFut: Future[E]): Future[(A, B, C, D, E)] =
-            aFut.zip(bFut).zip(cFut).zip(dFut).zip(eFut).map{case ((((a, b), c), d), e) => (a, b, c, d, e)}
+        // Zip 5 futures
+        def futureZip5[A, B, C, D, E](aFut: Future[A], bFut: Future[B], cFut: Future[C], dFut: Future[D], eFut: Future[E]): Future[(A, B, C, D, E)] =
+          aFut.zip(bFut).zip(cFut).zip(dFut).zip(eFut).map{case ((((a, b), c), d), e) => (a, b, c, d, e)}
 
-          // Store key
-          val storeKey: String =
-            getKeyOpt.getOrElse("") + Setting.FileEncryptionKey
+        // Store key
+        val storeKey: String =
+          getKeyOpt.getOrElse("") + Setting.FileEncryptionKey
 
-          RunnableGraph.fromGraph(GraphDSL.create(fileStoreSink, lengthSink, md5Sink, sha1Sink, sha256Sink)(futureZip5){implicit builder =>
-            (fileStoreSink, lengthSink, md5Sink, sha1Sink, sha256Sink) =>
+        RunnableGraph.fromGraph(GraphDSL.create(fileStoreSink, lengthSink, md5Sink, sha1Sink, sha256Sink)(futureZip5){implicit builder =>
+          (fileStoreSink, lengthSink, md5Sink, sha1Sink, sha256Sink) =>
 
             import GraphDSL.Implicits._
             val bcast = builder.add(Broadcast[ByteString](5))
@@ -136,61 +126,109 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
             // * calc SHA-1
             // * calc SHA-256
             byteSource ~> bcast ~> Compression.gzip ~> CipherFlow.flow(genEncryptCipher(storeKey)) ~> fileStoreSink
-                          bcast ~> lengthSink
-                          bcast ~> md5Sink
-                          bcast ~> sha1Sink
-                          bcast ~> sha256Sink
+            bcast ~> lengthSink
+            bcast ~> md5Sink
+            bcast ~> sha1Sink
+            bcast ~> sha256Sink
             ClosedShape
-          })
-        }
-
-
-        // Store future
-        val storeFuture = storeGraph.run()
-
-        // Remove file if failed
-        storeFuture.onFailure{case e =>
-          logger.error("Error in store", e)
-          logger.debug(s"Deleting '${storeFilePath}'...")
-          val res: Boolean = new File(storeFilePath).delete()
-          logger.debug(s"Deleted(${fileId.value}): ${res}")
-        }
-
-        for {
-          // Store a file and get content length
-          (ioResult, rawLength, md5Digest, sha1Digest, sha256Digest) <- storeFuture
-
-          // Create file store object
-          fileStore = FileStore(
-            fileId             = fileId,
-            storePath          = storeFilePath,
-            rawLength          = rawLength,
-            createdAt          = TimestampUtil.now(),
-            deadline           = TimestampUtil.now + adjustedDuration,
-            hashedGetKeyOpt    = hashedGetKeyOpt,
-            nGetLimitOpt       = nGetLimitOpt,
-            isDeletable        = isDeletable,
-            hashedDeleteKeyOpt = hashedDeleteKeyOpt,
-            md5Digest          = md5Digest,
-            sha1Digest         = sha1Digest,
-            sha256Digest       = sha256Digest
-          )
-          // Store to the database
-          // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
-          _          <- db.run(Tables.allFileStores += fileStore)
-          _ <- Future.successful {
-            logger.debug(s"IOResult: ${ioResult}")
-            logger.debug(s"rawLength: ${rawLength}")
-            logger.debug(s"md5Digest: ${md5Digest}")
-            logger.debug(s"sha1Digest: ${sha1Digest}")
-            logger.debug(s"sha256Digest: ${sha256Digest}")
-          }
-        } yield (fileId, md5Digest, sha1Digest, sha256Digest)
+        })
       }
-      case _ =>
-        Future.failed(
-          new FileIdGenFailedException(s"Length=${idLength} of File ID might run out")
+
+
+      // Store future
+      val storeFuture = storeGraph.run()
+
+      // Remove file if failed
+      storeFuture.onFailure{case e =>
+        logger.error(s"Error in store: ${Util.getStackTraceString(e)}", e)
+        logger.debug(s"Deleting '${storeFilePath}'...")
+        val res: Boolean = new File(storeFilePath).delete()
+        logger.debug(s"Deleted(${fileId.value}): ${res}")
+      }
+
+      for {
+        // Store a file and get content length
+        (ioResult, rawLength, md5Digest, sha1Digest, sha256Digest) <- storeFuture
+
+        // Create file store object
+        fileStore = FileStore(
+          fileId             = fileId,
+          storePath          = storeFilePath,
+          rawLength          = rawLength,
+          createdAt          = TimestampUtil.now(),
+          deadline           = TimestampUtil.now + adjustedDuration,
+          hashedGetKeyOpt    = hashedGetKeyOpt,
+          nGetLimitOpt       = nGetLimitOpt,
+          isDeletable        = isDeletable,
+          hashedDeleteKeyOpt = hashedDeleteKeyOpt,
+          md5Digest          = md5Digest,
+          sha1Digest         = sha1Digest,
+          sha256Digest       = sha256Digest
         )
+        // Store to the database
+        // TODO Check fileId collision (but if collision happens database occurs an error because of primary key)
+        _          <- db.run(Tables.allFileStores += fileStore)
+        _ <- Future.successful {
+          logger.debug(s"IOResult: ${ioResult}")
+          logger.debug(s"rawLength: ${rawLength}")
+          logger.debug(s"md5Digest: ${md5Digest}")
+          logger.debug(s"sha1Digest: ${sha1Digest}")
+          logger.debug(s"sha256Digest: ${sha256Digest}")
+        }
+      } yield (fileId, md5Digest, sha1Digest, sha256Digest)
+    }
+
+
+    specifiedFileIdOpt match {
+      // If file ID is specified
+      case Some(fileId) =>
+        for{
+          // Length of specified File ID should be equal or greater than `minSpecifiedFileIdLength`
+          _ <- Util.requireFuture(
+            fileId.value.length >= Setting.minSpecifiedFileIdLength,
+            new InvalidUseException(s"Length of File ID '${fileId.value}' should >= ${Setting.minSpecifiedFileIdLength}.")
+          )
+          // Length of specified File ID should be equal or less than `MaxIdLength`
+          _ <- Util.requireFuture(
+            fileId.value.length <= Setting.MaxIdLength,
+            new InvalidUseException(s"Length of File ID '${fileId.value}' should >= ${Setting.MaxIdLength}.")
+          )
+          // File ID value should be in candidate characters
+          _ <- Util.requireFuture(
+            fileId.value.forall((Setting.candidateChars ++ Setting.secureCandidateChars).contains(_)),
+            new InvalidUseException(s"File ID '${fileId.value}' contains invalid characters.")
+          )
+          // Generate store-path
+          storeFilePath: String = generateStoreFilePath(fileId)
+          // If already used File ID
+          _  <- Util.requireFuture(
+            !new File(storeFilePath).exists(),
+            new InvalidUseException(s"File ID '${fileId.value}' is already used.")
+          )
+          // Store
+          res <- store(fileId, storeFilePath)
+        } yield {
+          res
+        }
+      case _ =>
+        // Get ID length
+        val idLength: Int =
+          idLengthOpt
+            .getOrElse(Setting.DefaultIdLength)
+            .max(Setting.MinIdLength)
+            .min(Setting.MaxIdLength)
+        logger.debug(s"idLength: ${idLength}")
+
+        // Generate File ID and storeFilePath
+        generateNoDuplicatedFiledIdAndStorePathOpt(idLength, usesSecureChar) match {
+          case Some((fileId, storeFilePath)) => {
+            store(fileId, storeFilePath)
+          }
+          case _ =>
+            Future.failed(
+              new FileIdGenFailedException(s"Length=${idLength} of File ID might run out")
+            )
+        }
     }
 
 
@@ -229,13 +267,13 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
   }
 
   // Store byteSource and return HTTP response
-  private def sendingRoute(byteSource: Source[ByteString, _])(implicit ec: ExecutionContext): Route = {
+  private def sendingRoute(byteSource: Source[ByteString, _], specifiedFileIdOpt: Option[FileId])(implicit ec: ExecutionContext): Route = {
     import akka.http.scaladsl.server.Directives._
 
     processParamsRoute { params => // Process parameters
       // Store bytes to DB
       val storeFut: Future[(FileId, Digest[Algorithm.`MD5`.type], Digest[Algorithm.`SHA-1`.type], Digest[Algorithm.`SHA-256`.type])] =
-        storeBytes(byteSource, params.duration, params.getKeyOpt, params.nGetLimitOpt, params.idLengthOpt, params.isDeletable, params.deleteKeyOpt, params.usesSecureChar)
+        storeBytes(byteSource, specifiedFileIdOpt, params.duration, params.getKeyOpt, params.nGetLimitOpt, params.idLengthOpt, params.isDeletable, params.deleteKeyOpt, params.usesSecureChar)
 
       onComplete(storeFut) {
         case Success((fileId, md5Digest, sha1Digest, sha256Digest)) =>
@@ -247,10 +285,12 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
             complete(s"${fileId.value}\n")
           }
         case Failure(e) =>
-          logger.error("Error in storing data", e)
+          logger.error(s"Error in storing data: ${Util.getStackTraceString(e)}", e)
           e match {
             case e: FileIdGenFailedException =>
               complete(StatusCodes.InternalServerError, e.getMessage)
+            case e: InvalidUseException =>
+              complete(StatusCodes.BadRequest, s"${e.getMessage}\n")
             case _ =>
               complete(StatusCodes.InternalServerError, "Upload failed")
           }
@@ -298,58 +338,72 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
       } ~
       path(Setting.GetRouteName.Help) {
         extractUri {uri =>
-          // NOTE: uri.authority contains both host and port
-          val urlStr: String = s"${uri.scheme}://${uri.authority}"
 
-          complete( // TODO Should(?) move text content somewhere
-            s"""|Help for trans (${BuildInfo.version})
-                |(Repository: https://github.com/nwtgck/trans-server-akka)
-                |
-                |===== curl ======
-                |# Send  : curl ${urlStr} -T test.txt
-                |# Get   : curl ${urlStr}/a3h > mytest.txt
-                |# Delete: curl -X DELETE ${urlStr}/a3h
-                |(Suppose 'a3h' is File ID of test.txt)
-                |
-                |====== wget =====
-                |# Send  : wget -q -O - ${urlStr} --post-file=test.txt
-                |# Get   : wget ${urlStr}/a3h
-                |# Delete: wget --method=DELETE ${urlStr}/a3h
-                |(Suppose 'a3h' is File ID of test.txt)
-                |
-                |===== Option Example =====
-                |# Send (duration: 30 sec, Download limit: once, ID length: 16, Delete key: 'mykey1234')
-                |curl '${urlStr}/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234&secure-char' -T ./test.txt
-                |
-                |# Delete with delete key
-                |curl -X DELETE '${urlStr}/a3h?delete-key=mykey1234'
-                |
-                |------ Tip: directory sending (zip) ------
-                |zip -q -r - ./mydir | curl -T - ${urlStr}
-                |
-                |------ Tip: directory sending (tar.gz) ------
-                |tar zfcp - ./mydir/ | curl -T - ${urlStr}
-                |
-                |------ Installation of trans-cli ------
-                |# Mac
-                |brew install nwtgck/homebrew-trans/trans
-                |
-                |# Other
-                |go get github.com/nwtgck/trans-cli-go
-                |""".stripMargin
-          )
+          optionalHeaderValueByName("X-Forwarded-Proto") { xForwardedProtoOpt =>
+            // Get scheme considering X-Forwarded-Proto header
+            val scheme = xForwardedProtoOpt.getOrElse(uri.scheme)
+
+            // NOTE: uri.authority contains both host and port
+            val urlStr: String = s"${scheme}://${uri.authority}"
+
+            complete( // TODO Should(?) move text content somewhere
+              s"""|Help for trans (${BuildInfo.version})
+                  |(Repository: https://github.com/nwtgck/trans-server-akka)
+                  |
+                  |===== curl ======
+                  |# Send  : curl ${urlStr} -T test.txt
+                  |# Get   : curl ${urlStr}/a3h > mytest.txt
+                  |# Delete: curl -X DELETE ${urlStr}/a3h
+                  |(Suppose 'a3h' is File ID of test.txt)
+                  |
+                  |====== wget =====
+                  |# Send  : wget -q -O - ${urlStr} --post-file=test.txt
+                  |# Get   : wget ${urlStr}/a3h
+                  |# Delete: wget --method=DELETE ${urlStr}/a3h
+                  |(Suppose 'a3h' is File ID of test.txt)
+                  |
+                  |===== Option Example =====
+                  |# Send (duration: 30 sec, Download limit: once, ID length: 16, Delete key: 'mykey1234')
+                  |curl '${urlStr}/?duration=30s&get-times=1&id-length=16&delete-key=mykey1234&secure-char' -T ./test.txt
+                  |
+                  |# Delete with delete key
+                  |curl -X DELETE '${urlStr}/a3h?delete-key=mykey1234'
+                  |
+                  |------ Tip: directory sending (zip) ------
+                  |zip -q -r - ./mydir | curl -T - ${urlStr}
+                  |
+                  |------ Tip: directory sending (tar.gz) ------
+                  |tar zfcp - ./mydir/ | curl -T - ${urlStr}
+                  |
+                  |------ Installation of trans-cli ------
+                  |# Mac
+                  |brew install nwtgck/homebrew-trans/trans
+                  |
+                  |# Other
+                  |go get github.com/nwtgck/trans-cli-go
+                  |""".stripMargin
+            )
+          }
         }
 
       } ~
       // Send data via GET method
-      path(Setting.GetRouteName.Send) {
-        parameter("data".?) {dataStrOpt =>
-          // ByteString data
-          val data: ByteString = dataStrOpt.map(ByteString(_)).getOrElse(ByteString.empty)
-          // Store the data and return a response
-          sendingRoute(
-            Source.single(data)
-          )
+      {
+        def sendRoute(specifiedFileIdOpt: Option[FileId]): Route =
+          parameter("data".?) {dataStrOpt =>
+            // ByteString data
+            val data: ByteString = dataStrOpt.map(ByteString(_)).getOrElse(ByteString.empty)
+            // Store the data and return a response
+            sendingRoute(
+              Source.single(data),
+              specifiedFileIdOpt = specifiedFileIdOpt
+            )
+          }
+        path(Setting.GetRouteName.Send) {
+          sendRoute(specifiedFileIdOpt = None)
+        } ~
+        path(Setting.GetRouteName.Send / Setting.fileIdFixationPathName / Remaining) { fileIdStr =>
+          sendRoute(specifiedFileIdOpt = Some(FileId(fileIdStr)))
         }
       } ~
       path(RemainingPath) { path =>
@@ -445,22 +499,6 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
       }
 
     } ~
-    {
-      // Route of sending
-      val sendingRouteWithBody: Route =
-        // Get a file from client and store it
-        // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
-        withoutSizeLimit {
-          extractDataBytes { bytes =>
-            sendingRoute(bytes)
-          }
-        }
-
-      // Send by POST
-      (post & pathSingleSlash)(sendingRouteWithBody) ~
-      // Send by PUT
-      (put & path(Remaining))(_ => sendingRouteWithBody)
-    } ~
     // "Post /" for client-sending a file
     (post & path("multipart")) {
       // Process GET Parameters
@@ -473,7 +511,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
               val bytes: Source[ByteString, Any] = bodyPart.entity.dataBytes
 
               // Store bytes to DB
-              storeBytes(bytes, params.duration, params.getKeyOpt, params.nGetLimitOpt, params.idLengthOpt, params.isDeletable, params.deleteKeyOpt, params.usesSecureChar)
+              storeBytes(bytes, None, params.duration, params.getKeyOpt, params.nGetLimitOpt, params.idLengthOpt, params.isDeletable, params.deleteKeyOpt, params.usesSecureChar)
                 .map(_._1)
             }
 
@@ -484,7 +522,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
               case Success(fileIds) =>
                 complete(fileIds.map(_.value).mkString("\n"))
               case Failure(e) =>
-                logger.error("Error in storing data in multipart", e)
+                logger.error(s"Error in storing data in multipart: ${Util.getStackTraceString(e)}", e)
                 e match {
                   case e : FileIdGenFailedException =>
                     complete(StatusCodes.InternalServerError, e.getMessage)
@@ -496,6 +534,30 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
           }
 
         }
+      }
+    } ~
+    {
+      // Route of sending
+      def sendingRouteWithBody(specifiedFileIdOpt: Option[FileId]): Route =
+        // Get a file from client and store it
+        // hint from: http://doc.akka.io/docs/akka-http/current/scala/http/implications-of-streaming-http-entity.html#implications-of-streaming-http-entities
+        withoutSizeLimit {
+          extractDataBytes { bytes =>
+            sendingRoute(bytes, specifiedFileIdOpt)
+          }
+        }
+
+      // Send by POST
+      (post & pathSingleSlash)(sendingRouteWithBody(specifiedFileIdOpt = None)) ~
+      // Send by POST by specifing File ID
+      (post & path(Setting.fileIdFixationPathName / Remaining)){ fileIdStr => sendingRouteWithBody(specifiedFileIdOpt = Some(FileId(fileIdStr)))} ~
+      // Send by PUT by specifying File ID
+      (put & path(Setting.fileIdFixationPathName / Remaining)){ fileIdStr =>
+        sendingRouteWithBody(specifiedFileIdOpt = Some(FileId(fileIdStr)))
+      } ~
+      // Send by PUT
+      (put & path(RemainingPath)){_ =>
+        sendingRouteWithBody(specifiedFileIdOpt = None)
       }
     } ~
     // Delete file by ID
@@ -691,7 +753,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
           try {
             new File(file.storePath).delete()
           } catch {case e: Throwable =>
-            logger.error("Error in file deletion", e)
+            logger.error(s"Error in file deletion: ${Util.getStackTraceString(e)}", e)
           }
         }
       }
@@ -700,6 +762,14 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
       _         <- Future{logger.debug(s"Cleanup ${deadFiles.size} dead files")}
     } yield ()
   }
+
+  /**
+    * Generate store-path by File ID
+    * @param fileId
+    * @return
+    */
+  def generateStoreFilePath(fileId: FileId): String =
+    List(fileDbPath, fileId.value).mkString(File.separator)
 
   /**
     * Generate non-duplicated File ID and store path
@@ -714,7 +784,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
     do {
       tryNum    += 1
       fileIdStr = generateRandomFileId(idLength, usesSecureChar)
-      storeFilePath = List(fileDbPath, fileIdStr).mkString(File.separator)
+      storeFilePath = generateStoreFilePath(fileId=FileId(fileIdStr))
       if(tryNum > Setting.FileIdGenTryLimit){
         return None
       }
