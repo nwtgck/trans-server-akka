@@ -126,10 +126,10 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
             // * calc SHA-1
             // * calc SHA-256
             byteSource ~> bcast ~> Compression.gzip ~> CipherFlow.flow(genEncryptCipher(storeKey)) ~> fileStoreSink
-            bcast ~> lengthSink
-            bcast ~> md5Sink
-            bcast ~> sha1Sink
-            bcast ~> sha256Sink
+                          bcast ~> lengthSink
+                          bcast ~> md5Sink
+                          bcast ~> sha1Sink
+                          bcast ~> sha256Sink
             ClosedShape
         })
       }
