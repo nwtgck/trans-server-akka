@@ -6,7 +6,7 @@ version := "1.18.0"
 
 scalaVersion := "2.11.12"
 
-val akkaHttpVersion = "10.0.11"
+val akkaHttpVersion = "10.0.14"
 
 lazy val root = (project in file(".")).
   enablePlugins(BuildInfoPlugin, JavaAppPackaging).
