@@ -37,12 +37,14 @@ object Setting {
     val Help     : String = "help"
     val Version  : String = "version"
     val Send     : String = "send"
+    val Redirect : String = "r"
 
     // Reserved route names
     val allSet   : Set[String] = Set(
       Help,
       Version,
-      Send
+      Send,
+      Redirect
     )
   }
 }
