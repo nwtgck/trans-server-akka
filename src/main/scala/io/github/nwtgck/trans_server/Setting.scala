@@ -19,6 +19,7 @@ object Setting {
   val MinIdLength          : Int             = 3
   val MaxIdLength          : Int             = 128
   val minSpecifiedFileIdLength : Int         = 5
+  val MaxRedirectionUriLength: Int           = 10000000
   val KeySalt              : String          = "ymiKicjOq5M3yIMmVBEPFcLnkNxJ4n2iY9ms3fYRsBDS3wZvS1lev9ToLnZhlj3O"
   val FileEncryptionKey    : String          = "vKOhINCMuO47xxel" // NOTE: Its length should be 16
   val FileIdGenTryLimit    : Int             = 500 // NOTE: Simple study shows 500 is enough (https://github.com/nwtgck/random-str-collision-graph-scala)

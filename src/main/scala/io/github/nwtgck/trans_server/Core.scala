@@ -411,22 +411,25 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
           complete(HttpEntity(ContentTypes.NoContentType, fileStore.rawLength, fileSource))
 
         // Redirect response
-        // TODO: impl
         def redirectResponse(fileStore: FileStore, fileSource: Source[ByteString, Future[IOResult]]) = {
-          onComplete(fileSource.runReduce(_ ++ _)) {
-            case Success(uriStr) =>
-              Try(Uri(uriStr.utf8String.trim)) match {
-                case Success(uri) =>
-                  redirect(
-                    uri,
-                    StatusCodes.TemporaryRedirect
-                  )
-                case Failure(ex) =>
-                  complete(StatusCodes.BadRequest, s"Error in URI parse\n")
-              }
-
-            case Failure(ex) =>
-              complete(StatusCodes.InternalServerError, s"Unexpected error in redirection\n")
+          // Data raw length should <= Max-redirection-uri-length
+          if (fileStore.rawLength <= Setting.MaxRedirectionUriLength) {
+            onComplete(fileSource.runReduce(_ ++ _)) {
+              case Success(uriStr) =>
+                Try(Uri(uriStr.utf8String.trim)) match {
+                  case Success(uri) =>
+                    redirect(
+                      uri,
+                      StatusCodes.TemporaryRedirect
+                    )
+                  case Failure(ex) =>
+                    complete(StatusCodes.BadRequest, s"Error in URI parse\n")
+                }
+              case Failure(ex) =>
+                complete(StatusCodes.InternalServerError, s"Unexpected error in redirection\n")
+            }
+          } else {
+            complete(StatusCodes.BadRequest, s"URI whose length is ${fileStore.rawLength} is too long. Max length is ${Setting.MaxRedirectionUriLength}.\n")
           }
         }
 
