@@ -5,7 +5,7 @@ import java.security.MessageDigest
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.{BasicHttpCredentials, HttpChallenge, `WWW-Authenticate`}
+import akka.http.scaladsl.model.headers.{BasicHttpCredentials, HttpChallenge, `WWW-Authenticate`, Location}
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.util.ByteString
 import io.github.nwtgck.trans_server.digest.Algorithm
@@ -915,5 +915,47 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     // Some file ID contains some characters which is not contained in regular candidate chars
     // Because of "secure-char"
     concatedFileId.toCharArray.exists(c => !Setting.candidateChars.contains(c)) shouldBe true
+  }
+
+  test("[positive] send/get URI") {
+    val urlContent: String = "https://hogehoge.io"
+
+    val fileId: String =
+      Post("/").withEntity(urlContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
+
+    // Get and redirect
+    Get(s"/r/${fileId}") ~> core.route ~> check {
+      // The status should be redirect code
+      response.status shouldBe StatusCodes.TemporaryRedirect
+      header[Location].get.value shouldBe urlContent
+    }
+  }
+
+  test("[positive] send/get URI with white spaces") {
+    val urlContent: String = " \t \n https://hogehoge.io \n  "
+
+    val fileId: String =
+      Post("/").withEntity(urlContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
+
+    // Get and redirect
+    Get(s"/r/${fileId}") ~> core.route ~> check {
+      // The status should be redirect code
+      response.status shouldBe StatusCodes.TemporaryRedirect
+      header[Location].get.value shouldBe "https://hogehoge.io"
+    }
   }
 }
