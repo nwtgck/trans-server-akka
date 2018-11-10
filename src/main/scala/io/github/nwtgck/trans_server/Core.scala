@@ -5,17 +5,16 @@ import java.nio.file.StandardOpenOption
 
 import akka.actor.ActorSystem
 import akka.event.Logging
+import akka.http.impl.model.parser.HeaderParser
 import javax.crypto.Cipher
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
-import akka.http.scaladsl.model.headers
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{HttpOrigin, RawHeader}
 import akka.http.scaladsl.server.directives.Credentials
 import akka.http.scaladsl.server.{Directive0, Route}
 import akka.stream.scaladsl.{Broadcast, Compression, FileIO, Flow, GraphDSL, Keep, RunnableGraph, Sink, Source}
 import akka.stream.{ActorMaterializer, ClosedShape, IOResult}
 import akka.util.ByteString
-
 import io.github.nwtgck.trans_server.Tables.OriginalTypeImplicits._
 import io.github.nwtgck.trans_server.digest.{Algorithm, Digest, DigestCalculator}
 import slick.driver.H2Driver.api._
@@ -406,54 +405,79 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
           sendRoute(specifiedFileIdOpt = Some(FileId(fileIdStr)))
         }
       } ~
-      path(RemainingPath) { path =>
-        // Get file ID string
-        val fileIdStr = path.head.toString
-        // Generate file ID instance
-        val fileId: FileId = FileId(fileIdStr)
+      {
+        // File response
+        def fileResponse(fileStore: FileStore, fileSource: Source[ByteString, Future[IOResult]]) =
+          complete(HttpEntity(ContentTypes.NoContentType, fileStore.rawLength, fileSource))
 
-        // Check existence of valid(=not expired) file store
-        val existsFileStoreFut: Future[Option[FileStore]] =  db.run(
-          Tables.allFileStores
-            .filter(fileStore =>  fileStore.fileId === fileId && isAliveFileStore(fileStore))
-            .result
-            .headOption
-        )
-        onComplete(existsFileStoreFut){
+        // Redirect response
+        def redirectResponse(fileStore: FileStore, fileSource: Source[ByteString, Future[IOResult]]) = {
+          // Data raw length should <= Max-redirection-uri-length
+          if (fileStore.rawLength <= Setting.MaxRedirectionUriLength) {
+            onComplete(fileSource.runReduce(_ ++ _)) {
+              case Success(uriStr) =>
+                Try(Uri(uriStr.utf8String.trim)) match {
+                  case Success(uri) =>
+                    redirect(
+                      uri,
+                      StatusCodes.TemporaryRedirect
+                    )
+                  case Failure(ex) =>
+                    complete(StatusCodes.BadRequest, s"Error in URI parse\n")
+                }
+              case Failure(ex) =>
+                complete(StatusCodes.InternalServerError, s"Unexpected error in redirection\n")
+            }
+          } else {
+            complete(StatusCodes.BadRequest, s"URI whose length is ${fileStore.rawLength} is too long. Max length is ${Setting.MaxRedirectionUriLength}.\n")
+          }
+        }
 
-          // If file is alive (not expired and exist)
-          case Success(Some(fileStore)) =>
-            // Generate file instance
-            val file = new File(fileStore.storePath)
-            // File exists
-            if (file.exists()) {
-              withRangeSupport { // Range support for `pget`
-                // Create decrement-nGetLimit-DBIO (TODO decrementing nGetLimit may need mutual execution)
-                val decrementDbio = for {
-                  // Find file store
-                  fileStore <- Tables.allFileStores.filter(_.fileId === fileId).result.head
-                  // Decrement nGetLimit
-                  _         <- Tables.allFileStores.filter(_.fileId === fileId).map(_.nGetLimitOpt).update(fileStore.nGetLimitOpt.map(_ - 1))
-                } yield ()
+        // Generate get-route by response-generator
+        def getRoute(path: Uri.Path, responseGenerator: (FileStore, Source[ByteString, Future[IOResult]]) => Route): Route = {
+          // Get file ID string
+          val fileIdStr = path.head.toString
+          // Generate file ID instance
+          val fileId: FileId = FileId(fileIdStr)
 
-                onComplete(db.run(decrementDbio)){
-                  case Success(_) =>
+          // Check existence of valid(=not expired) file store
+          val existsFileStoreFut: Future[Option[FileStore]] =  db.run(
+            Tables.allFileStores
+              .filter(fileStore =>  fileStore.fileId === fileId && isAliveFileStore(fileStore))
+              .result
+              .headOption
+          )
+          onComplete(existsFileStoreFut){
+            // If file is alive (not expired and exist)
+            case Success(Some(fileStore)) =>
+              // Generate file instance
+              val file = new File(fileStore.storePath)
+              // File exists
+              if (file.exists()) {
+                withRangeSupport { // Range support for `pget`
+                  // Create decrement-nGetLimit-DBIO (TODO decrementing nGetLimit may need mutual execution)
+                  val decrementDbio = for {
+                    // Find file store
+                    fileStore <- Tables.allFileStores.filter(_.fileId === fileId).result.head
+                    // Decrement nGetLimit
+                    _         <- Tables.allFileStores.filter(_.fileId === fileId).map(_.nGetLimitOpt).update(fileStore.nGetLimitOpt.map(_ - 1))
+                  } yield ()
 
-                    def fileSource(storeKey: String) =
-                      FileIO.fromPath(file.toPath)
-                        // Decrypt data
-                        .via(CipherFlow.flow(genDecryptCipher(storeKey)))
-                        // Decompress data
-                        .via(Compression.gunzip())
+                  onComplete(db.run(decrementDbio)){
+                    case Success(_) =>
+
+                      def getFileSource(storeKey: String) =
+                        FileIO.fromPath(file.toPath)
+                          // Decrypt data
+                          .via(CipherFlow.flow(genDecryptCipher(storeKey)))
+                          // Decompress data
+                          .via(Compression.gunzip())
 
                       respondWithHeaders(
                         headers.RawHeader(Setting.Md5HttpHeaderName, fileStore.md5Digest.value),
                         headers.RawHeader(Setting.Sha1HttpHeaderName, fileStore.sha1Digest.value),
                         headers.RawHeader(Setting.Sha256HttpHeaderName, fileStore.sha256Digest.value)
                       ){
-                        // File response
-                        def fileResponse(storeKey: String) =
-                          complete(HttpEntity(ContentTypes.NoContentType, fileStore.rawLength, fileSource(storeKey)))
 
                         fileStore.hashedGetKeyOpt match {
                           // Has get-key
@@ -472,7 +496,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
                               authenticateBasic(realm = "", authenticator = getKeyAuthenticator) { _ =>
                                 Util.extractBasicAuthUserAndPasswordOpt{
                                   case Some((_, getKey)) =>
-                                    fileResponse(storeKey = getKey + Setting.FileEncryptionKey)
+                                    responseGenerator(fileStore, getFileSource(getKey + Setting.FileEncryptionKey))
                                   case None =>
                                     logger.error("Critical Error: getting password of Basic Authentication (This will never happen)")
                                     complete(StatusCodes.InternalServerError, s"Server error in Basic Authentication\n")
@@ -482,22 +506,31 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
                           // Not have get-key
                           case None =>
                             // Just response
-                            fileResponse(Setting.FileEncryptionKey)
+                            responseGenerator(fileStore, getFileSource(Setting.FileEncryptionKey))
                         }
                       }
 
-                  case _ =>
-                    complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
+                    case _ =>
+                      complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
+                  }
                 }
+              } else {
+                complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
               }
-            } else {
-              complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
-            }
-          case _ =>
-            complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found or expired\n")
+            case _ =>
+              complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found or expired\n")
+          }
+        }
+
+        // Get and redirect
+        path(Setting.GetRouteName.Redirect / RemainingPath) { path =>
+          getRoute(path, redirectResponse)
+        } ~
+        // Get (normal)
+        path(RemainingPath) {path =>
+          getRoute(path, fileResponse)
         }
       }
-
     } ~
     // "Post /" for client-sending a file
     (post & path("multipart")) {

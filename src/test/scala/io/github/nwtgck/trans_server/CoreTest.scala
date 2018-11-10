@@ -5,7 +5,7 @@ import java.security.MessageDigest
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.{BasicHttpCredentials, HttpChallenge, `WWW-Authenticate`}
+import akka.http.scaladsl.model.headers.{BasicHttpCredentials, HttpChallenge, `WWW-Authenticate`, Location}
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.util.ByteString
 import io.github.nwtgck.trans_server.digest.Algorithm
@@ -915,5 +915,187 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
     // Some file ID contains some characters which is not contained in regular candidate chars
     // Because of "secure-char"
     concatedFileId.toCharArray.exists(c => !Setting.candidateChars.contains(c)) shouldBe true
+  }
+
+  test("[positive] send/get URI") {
+    val urlContent: String = "https://hogehoge.io"
+
+    val fileId: String =
+      Post("/").withEntity(urlContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
+
+    // Get and redirect
+    Get(s"/r/${fileId}") ~> core.route ~> check {
+      // The status should be redirect code
+      response.status shouldBe StatusCodes.TemporaryRedirect
+      header[Location].get.value shouldBe urlContent
+    }
+  }
+
+  test("[positive] send/get URI with white spaces") {
+    val urlContent: String = " \t \n https://hogehoge.io \n  "
+
+    val fileId: String =
+      Post("/").withEntity(urlContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
+
+    // Get and redirect
+    Get(s"/r/${fileId}") ~> core.route ~> check {
+      // The status should be redirect code
+      response.status shouldBe StatusCodes.TemporaryRedirect
+      header[Location].get.value shouldBe "https://hogehoge.io"
+    }
+  }
+
+  test("[positive] send/get URI whose length is max") {
+    // Max URL
+    val maxUrlContent: String = {
+      val prefix = "https://hogehoge.io/"
+      // (from: https://stackoverflow.com/a/2099896/2885946)
+      val tail   = Stream.continually('a' to 'z').flatten.take(Setting.MaxRedirectionUriLength - prefix.length).mkString
+      require(prefix.length + tail.length == Setting.MaxRedirectionUriLength)
+      prefix + tail
+    }
+
+    val fileId: String =
+      Post("/").withEntity(maxUrlContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
+
+    // Get and redirect
+    Get(s"/r/${fileId}") ~> core.route ~> check {
+      // The status should be redirect code
+      response.status shouldBe StatusCodes.TemporaryRedirect
+      header[Location].get.value shouldBe maxUrlContent
+    }
+  }
+
+  test("[negative] send/get URI whose length is max+1") {
+    // Max URL
+    val maxUrlContent: String = {
+      val prefix = "https://hogehoge.io/"
+      // (from: https://stackoverflow.com/a/2099896/2885946)
+      val tail   = Stream.continually('a' to 'z').flatten.take(Setting.MaxRedirectionUriLength - prefix.length + 1).mkString
+      require(prefix.length + tail.length == Setting.MaxRedirectionUriLength + 1)
+      prefix + tail
+    }
+
+    val fileId: String =
+      Post("/").withEntity(maxUrlContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
+
+    // Get and redirect
+    Get(s"/r/${fileId}") ~> core.route ~> check {
+      // The status should be bad request because the URI length is over max
+      response.status shouldBe StatusCodes.BadRequest
+    }
+  }
+
+  test("[negative] send/get invalid URI") {
+    // Invalid URL
+    val urlContent: String = "invalid URI"
+
+    val fileId: String =
+      Post("/").withEntity(urlContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
+
+    // Get and redirect
+    Get(s"/r/${fileId}") ~> core.route ~> check {
+      // The status should be bad request because the URI is invalid
+      response.status shouldBe StatusCodes.BadRequest
+    }
+  }
+
+  test("[positive] send/get with Basic Authentication in URL redirection") {
+    val urlContent: String = "https://hogehoge.io"
+
+    val getKey: String = "p4ssw0rd"
+
+    val credentials1 = BasicHttpCredentials("dummy user", getKey)
+
+    val fileId: String =
+      Post("/").withEntity(urlContent) ~> addCredentials(credentials1) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
+
+    // Get the file without user and password
+    // (from: https://doc.akka.io/docs/akka-http/current/routing-dsl/directives/security-directives/authenticateBasic.html)
+    Get(s"/r/${fileId}") ~> core.route ~> check {
+      status shouldEqual StatusCodes.Unauthorized
+      header[`WWW-Authenticate`].get.challenges.head shouldEqual HttpChallenge("Basic", Some(""), Map("charset" → "UTF-8"))
+    }
+
+    // Get the file with user and password
+    Get(s"/r/${fileId}") ~> addCredentials(credentials1) ~>  core.route ~> check {
+      // The status should be redirect code
+      response.status shouldBe StatusCodes.TemporaryRedirect
+      header[Location].get.value shouldBe urlContent
+    }
+
+    // Get the file with different user and password
+    // NOTE: User name should be ignored
+    val credentials2 = BasicHttpCredentials("hoge hoge user", getKey)
+    Get(s"/r/${fileId}") ~> addCredentials(credentials2) ~>  core.route ~> check {
+      // The status should be redirect code
+      response.status shouldBe StatusCodes.TemporaryRedirect
+      header[Location].get.value shouldBe urlContent
+    }
+  }
+
+  test("[negative] send/get with Basic Authentication in URL redirection") {
+    val urlContent: String = "https://hogehoge.io"
+
+    val getKey: String = "p4ssw0rd"
+
+    val credentials1 = BasicHttpCredentials("dummy user", getKey)
+    val fileId: String =
+      Post("/").withEntity(urlContent) ~> addCredentials(credentials1) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
+
+    // Get the file with user and WRONG password
+    Get(s"/r/${fileId}") ~> addCredentials(credentials1.copy(password = "this is wrong password!")) ~>  core.route ~> check {
+      status shouldEqual StatusCodes.Unauthorized
+      header[`WWW-Authenticate`].get.challenges.head shouldEqual HttpChallenge("Basic", Some(""), Map("charset" → "UTF-8"))
+    }
   }
 }
