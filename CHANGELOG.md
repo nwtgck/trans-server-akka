@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.19.0] - 2018-11-10
+### Added
+- Allow users to redirect URI by `/r/<File ID>`
+
 ## [1.18.0] - 2018-09-05
 ### Added
 - Allow users to specify File ID when sending
@@ -144,7 +148,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - Adapt [`sbt-native-packager`](https://github.com/sbt/sbt-native-packager) for [Heroku](https://heroku.com/)
 
 
-[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.18.0...HEAD
+[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.0...HEAD
+[1.19.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.18.0...v1.19.0
 [1.18.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.16.2...v1.17.0
 [1.16.2]: https://github.com/nwtgck/trans-server-akka/compare/v1.16.1...v1.16.2
