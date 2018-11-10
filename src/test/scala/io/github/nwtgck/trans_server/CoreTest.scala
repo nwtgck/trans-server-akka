@@ -1013,4 +1013,25 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       response.status shouldBe StatusCodes.BadRequest
     }
   }
+
+  test("[negative] send/get invalid URI") {
+    // Invalid URL
+    val urlContent: String = "invalid URI"
+
+    val fileId: String =
+      Post("/").withEntity(urlContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
+
+    // Get and redirect
+    Get(s"/r/${fileId}") ~> core.route ~> check {
+      // The status should be bad request because the URI is invalid
+      response.status shouldBe StatusCodes.BadRequest
+    }
+  }
 }
