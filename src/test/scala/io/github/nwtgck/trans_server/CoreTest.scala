@@ -958,4 +958,32 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       header[Location].get.value shouldBe "https://hogehoge.io"
     }
   }
+
+  test("[positive] send/get max URI length") {
+    // Max URL
+    val maxUrlContent: String = {
+      val prefix = "https://hogehoge.io/"
+      // (from: https://stackoverflow.com/a/2099896/2885946)
+      val tail   = Stream.continually('a' to 'z').flatten.take(Setting.MaxRedirectionUriLength - prefix.length).mkString
+      require(prefix.length + tail.length == Setting.MaxRedirectionUriLength)
+      prefix + tail
+    }
+
+    val fileId: String =
+      Post("/").withEntity(maxUrlContent) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
+
+    // Get and redirect
+    Get(s"/r/${fileId}") ~> core.route ~> check {
+      // The status should be redirect code
+      response.status shouldBe StatusCodes.TemporaryRedirect
+      header[Location].get.value shouldBe maxUrlContent
+    }
+  }
 }
