@@ -1075,4 +1075,27 @@ class CoreTest extends FunSuite with ScalatestRouteTest with Matchers with Befor
       header[Location].get.value shouldBe urlContent
     }
   }
+
+  test("[negative] send/get with Basic Authentication in URL redirection") {
+    val urlContent: String = "https://hogehoge.io"
+
+    val getKey: String = "p4ssw0rd"
+
+    val credentials1 = BasicHttpCredentials("dummy user", getKey)
+    val fileId: String =
+      Post("/").withEntity(urlContent) ~> addCredentials(credentials1) ~> core.route ~> check {
+        // Get file ID
+        val fileId = responseAs[String].trim
+        // File ID length should be 3
+        fileId.length shouldBe 3
+
+        fileId
+      }
+
+    // Get the file with user and WRONG password
+    Get(s"/r/${fileId}") ~> addCredentials(credentials1.copy(password = "this is wrong password!")) ~>  core.route ~> check {
+      status shouldEqual StatusCodes.Unauthorized
+      header[`WWW-Authenticate`].get.challenges.head shouldEqual HttpChallenge("Basic", Some(""), Map("charset" → "UTF-8"))
+    }
+  }
 }
