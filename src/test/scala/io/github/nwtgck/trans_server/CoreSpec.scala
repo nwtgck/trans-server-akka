@@ -409,75 +409,75 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    test("[positive] send/get by GET method") {
-      val fileId1: String =
-        Get("/send?data=hello%2C%20world") ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
-          // File ID length should be 3
-          fileId.length shouldBe 3
+    describe("GET-method sending") {
+      it("should allow user to send by GET method and get") {
+        val fileId1: String =
+          Get("/send?data=hello%2C%20world") ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
+            // File ID length should be 3
+            fileId.length shouldBe 3
 
-          fileId
+            fileId
+          }
+
+        Get(s"/${fileId1}") ~> core.route ~> check {
+          val resContent: String = responseAs[String]
+          // response should be original
+          resContent shouldBe "hello, world"
         }
 
-      Get(s"/${fileId1}") ~> core.route ~> check {
-        val resContent: String = responseAs[String]
-        // response should be original
-        resContent shouldBe "hello, world"
-      }
-
-      // Send data with option
-      val idLenght: Int = 16
-      val data: String = "hello"
-      Get(s"/send?data=${data}&id-length=${idLenght}") ~> core.route ~> check {
-        // Get file ID
-        val fileId = responseAs[String].trim
-        // File ID length should be the specified value
-        fileId.length shouldBe idLenght
-        fileId
-      }
-
-    }
-
-    // FIXME: The following test is meaningless
-    // This means the test is not related to `akka.http.parsing.max-uri-length`
-    // because RouteTest does not check `max-uri-length`.
-    // There may be some setting to check `max-uri-length`.
-    test("[positive] send/get big data by GET method") {
-
-      val longData: String = "A" * 10000000
-      val fileId2: String =
-        Get(s"/send?data=${longData}") ~> core.route ~> check {
+        // Send data with option
+        val idLenght: Int = 16
+        val data: String = "hello"
+        Get(s"/send?data=${data}&id-length=${idLenght}") ~> core.route ~> check {
           // Get file ID
           val fileId = responseAs[String].trim
-          // File ID length should be 3
-          fileId.length shouldBe 3
-
+          // File ID length should be the specified value
+          fileId.length shouldBe idLenght
           fileId
         }
-
-      Get(s"/${fileId2}") ~> core.route ~> check {
-        val resContent: String = responseAs[String]
-        // response should be original
-        resContent shouldBe longData
-      }
-    }
-
-    test("[positive] send/get by GET method specifying File ID") {
-
-      val fileId: String = "myfileid123"
-
-      Get(s"/send/fix/${fileId}?data=hello%2C%20world") ~> core.route ~> check {
-        // Get file ID
-        val resFileId = responseAs[String].trim
-        // Response of File ID should be the specified File ID
-        resFileId shouldBe fileId
       }
 
-      Get(s"/${fileId}") ~> core.route ~> check {
-        val resContent: String = responseAs[String]
-        // response should be original
-        resContent shouldBe "hello, world"
+      // FIXME: The following test is meaningless
+      // This means the test is not related to `akka.http.parsing.max-uri-length`
+      // because RouteTest does not check `max-uri-length`.
+      // There may be some setting to check `max-uri-length`.
+      it("should allow user send big data by GET method and get it") {
+
+        val longData: String = "A" * 10000000
+        val fileId2: String =
+          Get(s"/send?data=${longData}") ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
+            // File ID length should be 3
+            fileId.length shouldBe 3
+
+            fileId
+          }
+
+        Get(s"/${fileId2}") ~> core.route ~> check {
+          val resContent: String = responseAs[String]
+          // response should be original
+          resContent shouldBe longData
+        }
+      }
+
+      it("should allow user to send by GET method specifying File ID and get it") {
+        val fileId: String = "myfileid123"
+
+        Get(s"/send/fix/${fileId}?data=hello%2C%20world") ~> core.route ~> check {
+          // Get file ID
+          val resFileId = responseAs[String].trim
+          // Response of File ID should be the specified File ID
+          resFileId shouldBe fileId
+        }
+
+        Get(s"/${fileId}") ~> core.route ~> check {
+          val resContent: String = responseAs[String]
+          // response should be original
+          resContent shouldBe "hello, world"
+        }
       }
     }
 
