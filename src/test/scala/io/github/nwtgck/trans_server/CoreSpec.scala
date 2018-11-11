@@ -655,52 +655,54 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    test("[positive] send with length=16") {
-      val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val fileIdLength: Int    = 16
-      Post(s"/?id-length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
-        // Get file ID
-        val fileId: String = responseAs[String].trim
-        // File ID length should be fileIdLength
-        fileId.length shouldBe fileIdLength
-      }
-    }
-
-    test("[positive] send with length=100000 (too big)") {
-      val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val fileIdLength: Int    = 100000
-      val fileId: String =
+    describe("by specifying File ID length") {
+      it("should allow user to send with File ID length=16") {
+        val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val fileIdLength: Int    = 16
         Post(s"/?id-length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
           // Get file ID
-          val fileId = responseAs[String].trim
-          // File ID length should be MaxIdLength
-          fileId.length shouldBe Setting.MaxIdLength
-
-          fileId
+          val fileId: String = responseAs[String].trim
+          // File ID length should be fileIdLength
+          fileId.length shouldBe fileIdLength
         }
-      Get(s"/${fileId}") ~> core.route ~> check {
-        val resContent: String = responseAs[String]
-        // response should be original
-        resContent shouldBe fileContent
       }
-    }
 
-    test("[positive] send with length=1 (too small)") {
-      val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val fileIdLength: Int    = 1
-      val fileId: String =
-        Post(s"/?length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
-          // File ID length should be MinIdLength
-          fileId.length shouldBe Setting.MinIdLength
+      it("allow user to send with File ID length=100000 (too big) and File ID should be truncated to max length") {
+        val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val fileIdLength: Int    = 100000
+        val fileId: String =
+          Post(s"/?id-length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
+            // File ID length should be MaxIdLength
+            fileId.length shouldBe Setting.MaxIdLength
 
-          fileId
+            fileId
+          }
+        Get(s"/${fileId}") ~> core.route ~> check {
+          val resContent: String = responseAs[String]
+          // response should be original
+          resContent shouldBe fileContent
         }
-      Get(s"/${fileId}") ~> core.route ~> check {
-        val resContent: String = responseAs[String]
-        // response should be original
-        resContent shouldBe fileContent
+      }
+
+      it("should allow user to send with length=1 (too small) and File ID should be lifted up to min length") {
+        val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val fileIdLength: Int    = 1
+        val fileId: String =
+          Post(s"/?length=${fileIdLength}").withEntity(fileContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
+            // File ID length should be MinIdLength
+            fileId.length shouldBe Setting.MinIdLength
+
+            fileId
+          }
+        Get(s"/${fileId}") ~> core.route ~> check {
+          val resContent: String = responseAs[String]
+          // response should be original
+          resContent shouldBe fileContent
+        }
       }
     }
 
