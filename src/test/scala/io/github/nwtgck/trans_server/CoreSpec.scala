@@ -482,7 +482,7 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
     }
 
 
-    test("[positive] send/get big data") {
+    it("should allow user to send and get big data") {
 
       // Create random 10MB bytes
       val originalBytes: Array[Byte] = {
@@ -513,7 +513,7 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    test("[positive] send/get with Basic Authentication") {
+    it("should allow user to send and get with Basic Authentication") {
       val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
       val getKey: String = "p4ssw0rd"
@@ -554,7 +554,7 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    test("[negative] send/get with Basic Authentication") {
+    it("should not allow user to get by Basic Authentication with a wrong password") {
       val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
       val getKey: String = "p4ssw0rd"
