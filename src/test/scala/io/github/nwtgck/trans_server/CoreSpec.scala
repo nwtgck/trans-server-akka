@@ -577,47 +577,49 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    test("[positive] send/get with duration") {
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val durationSec: Int    = 5
-      val fileId: String =
-        Post(s"/?duration=${durationSec}s").withEntity(originalContent) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
-          // File ID length should be 3
-          fileId.length shouldBe 3
+    describe("'duration' parameter") {
+      it("should allow user to send with duration and get it in the duration") {
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val durationSec: Int    = 5
+        val fileId: String =
+          Post(s"/?duration=${durationSec}s").withEntity(originalContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
+            // File ID length should be 3
+            fileId.length shouldBe 3
 
-          fileId
+            fileId
+          }
+
+        Thread.sleep((durationSec - 2)*1000)
+
+        Get(s"/${fileId}") ~> core.route ~> check {
+          // Get response file content
+          val resContent: String = responseAs[String]
+          // response should be original
+          resContent shouldBe originalContent
         }
-
-      Thread.sleep((durationSec - 2)*1000)
-
-      Get(s"/${fileId}") ~> core.route ~> check {
-        // Get response file content
-        val resContent: String = responseAs[String]
-        // response should be original
-        resContent shouldBe originalContent
       }
-    }
 
-    test("[negative] send/get with duration") {
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val durationSec: Int    = 5
-      val fileId: String =
-        Post(s"/?duration=${durationSec}s").withEntity(originalContent) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
-          // File ID length should be 3
-          fileId.length shouldBe 3
+      it("should not allow user to get out of the duration") {
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val durationSec: Int    = 5
+        val fileId: String =
+          Post(s"/?duration=${durationSec}s").withEntity(originalContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
+            // File ID length should be 3
+            fileId.length shouldBe 3
 
-          fileId
+            fileId
+          }
+
+        Thread.sleep((durationSec + 2)*1000)
+
+        Get(s"/${fileId}") ~> core.route ~> check {
+          // The status should be 404
+          response.status shouldBe StatusCodes.NotFound
         }
-
-      Thread.sleep((durationSec + 2)*1000)
-
-      Get(s"/${fileId}") ~> core.route ~> check {
-        // The status should be 404
-        response.status shouldBe StatusCodes.NotFound
       }
     }
 
