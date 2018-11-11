@@ -66,33 +66,35 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
     // TODO: Remove and use `it`
     val test = it
 
-    test("[positive] top page") {
-      Get(s"/") ~> core.route ~> check {
-        // Just check status code
-        status.intValue() shouldBe 200
+    describe("top page") {
+      it("should show the top page") {
+        Get(s"/") ~> core.route ~> check {
+          // Just check status code
+          status.intValue() shouldBe 200
+        }
       }
-    }
 
-    test("[positive] top page (X-Forwarded-Proto redirection)") {
-      Get(s"/") ~> addHeader("X-Forwarded-Proto", "http") ~> core.route ~> check {
-        // Status should be "Permanent Redirect"
-        status shouldBe StatusCodes.PermanentRedirect
+      it("should show redirect page if X-Forwarded-Proto header is specified") {
+        Get(s"/") ~> addHeader("X-Forwarded-Proto", "http") ~> core.route ~> check {
+          // Status should be "Permanent Redirect"
+          status shouldBe StatusCodes.PermanentRedirect
+        }
       }
-    }
 
-    test("[positive] top page (enable-top-page-https-redirect)") {
-      // Create a memory-base db
-      val db = Database.forConfig("h2mem-trans")
-      // Create a tables
-      Await.ready(Tables.createTablesIfNotExist(db), Duration.Inf)
-      // Temp directory for file DB
-      val tmpFileDbPath: String = Files.createTempDirectory("file_db_").toString
-      // Create a core system
-      val core = new Core(db, fileDbPath = tmpFileDbPath, enableTopPageHttpsRedirect = true)
+      it("should redirect from top page if enable-top-page-https-redirect is true") {
+        // Create a memory-base db
+        val db = Database.forConfig("h2mem-trans")
+        // Create a tables
+        Await.ready(Tables.createTablesIfNotExist(db), Duration.Inf)
+        // Temp directory for file DB
+        val tmpFileDbPath: String = Files.createTempDirectory("file_db_").toString
+        // Create a core system
+        val core = new Core(db, fileDbPath = tmpFileDbPath, enableTopPageHttpsRedirect = true)
 
-      Get("/") ~> core.route ~> check {
-        // Status should be "Permanent Redirect"
-        status shouldBe StatusCodes.PermanentRedirect
+        Get("/") ~> core.route ~> check {
+          // Status should be "Permanent Redirect"
+          status shouldBe StatusCodes.PermanentRedirect
+        }
       }
     }
 
