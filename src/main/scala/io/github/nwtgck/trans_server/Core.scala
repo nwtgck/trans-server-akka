@@ -149,6 +149,14 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
         // Store a file and get content length
         (ioResult, rawLength, md5Digest, sha1Digest, sha256Digest) <- storeFuture
 
+        _ <- ioResult match {
+          case IOResult(_, Success(_)) =>
+            Future.successful(())
+          case IOResult(_, Failure(ex)) =>
+            // Fail because IOResult is failed
+            Future.failed(ex)
+        }
+
         // Create file store object
         fileStore = FileStore(
           fileId             = fileId,
