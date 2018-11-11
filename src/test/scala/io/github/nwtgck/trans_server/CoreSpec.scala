@@ -577,7 +577,7 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    describe("'duration' parameter") {
+    describe("by specifying store-duration") {
       it("should allow user to send with duration and get it in the duration") {
         val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
         val durationSec: Int    = 5
@@ -623,7 +623,7 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    describe("'time' parameter") {
+    describe("by specifying download-times") {
       it("should allow user to get n-times and not allow to get over n-times") {
         val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
         val times      : Int    = 5
