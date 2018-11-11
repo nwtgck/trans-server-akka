@@ -623,33 +623,35 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    test("[positive/negative] send/get with times") {
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val times      : Int    = 5
-      val fileId: String =
-        Post(s"/?get-times=${times}").withEntity(originalContent) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
-          // File ID length should be 3
-          fileId.length shouldBe 3
+    describe("'time' parameter") {
+      it("should allow user to get n-times and not allow to get over n-times") {
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val times      : Int    = 5
+        val fileId: String =
+          Post(s"/?get-times=${times}").withEntity(originalContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
+            // File ID length should be 3
+            fileId.length shouldBe 3
 
-          fileId
+            fileId
+          }
+
+        // Success to get
+        for(_ <- 1 to times){
+          Get(s"/${fileId}") ~> core.route ~> check {
+            // Get response file content
+            val resContent: String = responseAs[String]
+            // response should be original
+            resContent shouldBe originalContent
+          }
         }
 
-      // Success to get
-      for(_ <- 1 to times){
+        // Fail to get because of times-limit
         Get(s"/${fileId}") ~> core.route ~> check {
-          // Get response file content
-          val resContent: String = responseAs[String]
-          // response should be original
-          resContent shouldBe originalContent
+          // The status should be 404
+          response.status shouldBe StatusCodes.NotFound
         }
-      }
-
-      // Fail to get because of times-limit
-      Get(s"/${fileId}") ~> core.route ~> check {
-        // The status should be 404
-        response.status shouldBe StatusCodes.NotFound
       }
     }
 
