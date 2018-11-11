@@ -98,18 +98,22 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    test("[positive] help page") {
-      Get(s"/help") ~> core.route ~> check {
-        // Just check status code
-        status.intValue() shouldBe 200
+    describe("help page") {
+      it("should show help page") {
+        Get(s"/help") ~> core.route ~> check {
+          // Just check status code
+          status.intValue() shouldBe 200
+        }
       }
     }
 
-    test("[positive] version page") {
-      Get(s"/version") ~> core.route ~> check {
-        val versionStr: String = responseAs[String].trim
-        // Check version page
-        versionStr shouldBe BuildInfo.version
+    describe("version page") {
+      it("should show version page") {
+        Get(s"/version") ~> core.route ~> check {
+          val versionStr: String = responseAs[String].trim
+          // Check version page
+          versionStr shouldBe BuildInfo.version
+        }
       }
     }
 
