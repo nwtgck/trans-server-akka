@@ -169,77 +169,79 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    test("[positive] send/get by specifying File ID") {
+    describe("File ID fixation") {
+      it("should allow user send by specifying a File ID and get it") {
 
-      val fileId: String = "myfileid123"
+        val fileId: String = "myfileid123"
 
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
-      Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
-        // Get file ID
-        val resFileId = responseAs[String].trim
-        // Response of File ID should be the specified File ID
-        resFileId shouldBe fileId
+        Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+          // Get file ID
+          val resFileId = responseAs[String].trim
+          // Response of File ID should be the specified File ID
+          resFileId shouldBe fileId
+        }
+
+        Get(s"/${fileId}") ~> core.route ~> check {
+          val resContent: String = responseAs[String]
+          // response should be original
+          resContent shouldBe originalContent
+        }
       }
 
-      Get(s"/${fileId}") ~> core.route ~> check {
-        val resContent: String = responseAs[String]
-        // response should be original
-        resContent shouldBe originalContent
+      it("should not allow user to send by specifying too SHORT File ID") {
+        val fileId: String = "abc"
+        require(fileId.length < Setting.minSpecifiedFileIdLength)
+
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+        Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+          status shouldBe StatusCodes.BadRequest
+        }
+      }
+
+      // TODO: Use boundary values
+      it("should not allow user send by specifying too LONG File ID") {
+        val fileId: String = "a" * 500
+        require(fileId.length > Setting.MaxIdLength)
+
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+        Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+          status shouldBe StatusCodes.BadRequest
+        }
+      }
+
+      it("should not allow user to send by specifying INVALID File ID") {
+        // NOTE: File ID contains invalid character
+        val fileId: String = "myfileid~123"
+
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+        Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+          status shouldBe StatusCodes.BadRequest
+        }
+      }
+
+      it("should not allow user send by specifying DUPLICATE File ID") {
+        val fileId: String = "myfileid123"
+
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+        Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+          // Get file ID
+          val resFileId = responseAs[String].trim
+          // Response of File ID should be the specified File ID
+          resFileId shouldBe fileId
+        }
+
+        // NOTE: Send twice by the same File ID
+        Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+          status shouldBe StatusCodes.BadRequest
+        }
       }
     }
-
-    test("[negative] send/get by specifying too SHORT File ID") {
-      val fileId: String = "abc"
-      require(fileId.length < Setting.minSpecifiedFileIdLength)
-
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-
-      Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
-        status shouldBe StatusCodes.BadRequest
-      }
-    }
-
-    test("[negative] send/get by specifying too LONG File ID") {
-      val fileId: String = "a" * 500
-      require(fileId.length > Setting.MaxIdLength)
-
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-
-      Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
-        status shouldBe StatusCodes.BadRequest
-      }
-    }
-
-    test("[negative] send/get by specifying INVALID File ID") {
-      // NOTE: File ID contains invalid character
-      val fileId: String = "myfileid~123"
-
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-
-      Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
-        status shouldBe StatusCodes.BadRequest
-      }
-    }
-
-    test("[negative] send/get by specifying DUPLICATE File ID") {
-      val fileId: String = "myfileid123"
-
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-
-      Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
-        // Get file ID
-        val resFileId = responseAs[String].trim
-        // Response of File ID should be the specified File ID
-        resFileId shouldBe fileId
-      }
-
-      // NOTE: Send twice by the same File ID
-      Post(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
-        status shouldBe StatusCodes.BadRequest
-      }
-    }
-
 
     test("[positive] send/get by multipart") {
       val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
