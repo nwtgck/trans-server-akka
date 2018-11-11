@@ -706,207 +706,208 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    test("[positive] send/delete with deletable") {
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val fileId: String =
-        Post("/?deletable").withEntity(originalContent) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
+    describe("by specifying whether file is deletable or not, and delete-key") {
+      it("should allow user to send data as deletable and delete") {
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val fileId: String =
+          Post("/?deletable").withEntity(originalContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
 
-          fileId
+            fileId
+          }
+
+        // Delete the file
+        Delete(s"/${fileId}") ~> core.route ~> check {
+          // Status should be OK
+          response.status shouldBe StatusCodes.OK
         }
 
-      // Delete the file
-      Delete(s"/${fileId}") ~> core.route ~> check {
-        // Status should be OK
-        response.status shouldBe StatusCodes.OK
+        // Fail to get because of deletion
+        Get(s"/${fileId}") ~> core.route ~> check {
+          // The status should be 404
+          response.status shouldBe StatusCodes.NotFound
+        }
       }
 
-      // Fail to get because of deletion
-      Get(s"/${fileId}") ~> core.route ~> check {
-        // The status should be 404
-        response.status shouldBe StatusCodes.NotFound
-      }
-    }
+      it("should allow user to send with deletable=true and delete") {
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val fileId: String =
+          Post("/?deletable=true").withEntity(originalContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
 
-    test("[positive] send/delete with deletable=true") {
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val fileId: String =
-        Post("/?deletable=true").withEntity(originalContent) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
+            fileId
+          }
 
-          fileId
+        // Delete the file
+        Delete(s"/${fileId}") ~> core.route ~> check {
+          // Status should be OK
+          response.status shouldBe StatusCodes.OK
         }
 
-      // Delete the file
-      Delete(s"/${fileId}") ~> core.route ~> check {
-        // Status should be OK
-        response.status shouldBe StatusCodes.OK
+        // Fail to get because of deletion
+        Get(s"/${fileId}") ~> core.route ~> check {
+          // The status should be 404
+          response.status shouldBe StatusCodes.NotFound
+        }
       }
 
-      // Fail to get because of deletion
-      Get(s"/${fileId}") ~> core.route ~> check {
-        // The status should be 404
-        response.status shouldBe StatusCodes.NotFound
-      }
-    }
+      it("should allow user to send without deletable and delete") {
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val fileId: String =
+          Post("/").withEntity(originalContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
 
-    test("[positive] send/delete without deletable") {
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val fileId: String =
-        Post("/").withEntity(originalContent) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
+            fileId
+          }
 
-          fileId
+        // Success to delete the file
+        Delete(s"/${fileId}") ~> core.route ~> check {
+          // Status should be OK
+          response.status shouldBe StatusCodes.OK
         }
 
-      // Success to delete the file
-      Delete(s"/${fileId}") ~> core.route ~> check {
-        // Status should be OK
-        response.status shouldBe StatusCodes.OK
+        // Fail to get because of deletion
+        Get(s"/${fileId}") ~> core.route ~> check {
+          // The status should be 404
+          response.status shouldBe StatusCodes.NotFound
+        }
       }
 
-      // Fail to get because of deletion
-      Get(s"/${fileId}") ~> core.route ~> check {
-        // The status should be 404
-        response.status shouldBe StatusCodes.NotFound
-      }
-    }
+      it("should not allow user to delete data with deletable=false") {
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val fileId: String =
+          Post("/?deletable=false").withEntity(originalContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
 
-    test("[negative] send/delete with deletable=false") {
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val fileId: String =
-        Post("/?deletable=false").withEntity(originalContent) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
+            fileId
+          }
 
-          fileId
+        // Fail to delete the file
+        Delete(s"/${fileId}") ~> core.route ~> check {
+          // Status should be NotFound because not deletable
+          response.status shouldBe StatusCodes.NotFound
         }
 
-      // Fail to delete the file
-      Delete(s"/${fileId}") ~> core.route ~> check {
-        // Status should be NotFound because not deletable
-        response.status shouldBe StatusCodes.NotFound
+        // Success to get because of no deletion
+        Get(s"/${fileId}") ~> core.route ~> check {
+          // Get response file content
+          val resContent: String = responseAs[String]
+          // response should be original
+          resContent shouldBe originalContent
+        }
       }
 
-      // Success to get because of no deletion
-      Get(s"/${fileId}") ~> core.route ~> check {
-        // Get response file content
-        val resContent: String = responseAs[String]
-        // response should be original
-        resContent shouldBe originalContent
-      }
-    }
+      it("should allow user to send data as deletable with key and delete with the key") {
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val deleteKey: String = "mykey1234"
+        val fileId: String =
+          Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
 
+            fileId
+          }
 
-    test("[positive] send/delete with deletable with key") {
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val deleteKey: String = "mykey1234"
-      val fileId: String =
-        Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
-
-          fileId
+        // Delete the file
+        Delete(s"/${fileId}?delete-key=${deleteKey}") ~> core.route ~> check {
+          // Status should be OK
+          response.status shouldBe StatusCodes.OK
         }
 
-      // Delete the file
-      Delete(s"/${fileId}?delete-key=${deleteKey}") ~> core.route ~> check {
-        // Status should be OK
-        response.status shouldBe StatusCodes.OK
+        // Fail to get because of deletion
+        Get(s"/${fileId}") ~> core.route ~> check {
+          // The status should be 404
+          response.status shouldBe StatusCodes.NotFound
+        }
       }
 
-      // Fail to get because of deletion
-      Get(s"/${fileId}") ~> core.route ~> check {
-        // The status should be 404
-        response.status shouldBe StatusCodes.NotFound
-      }
-    }
+      it("should not allow user to delete data which has a delete-key without delete-key") {
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val deleteKey: String = "mykey1234"
+        val fileId: String =
+          Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
 
-    test("[negative] send/delete with deletable with empty key") {
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val deleteKey: String = "mykey1234"
-      val fileId: String =
-        Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
+            fileId
+          }
 
-          fileId
+        // Fail to delete the file
+        Delete(s"/${fileId}") ~> core.route ~> check {
+          // Status should be NotFound because key is nothing
+          response.status shouldBe StatusCodes.NotFound
         }
 
-      // Fail to delete the file
-      Delete(s"/${fileId}") ~> core.route ~> check {
-        // Status should be NotFound because key is empty
-        response.status shouldBe StatusCodes.NotFound
+        // Success to get because of no deletion
+        Get(s"/${fileId}") ~> core.route ~> check {
+          // Get response file content
+          val resContent: String = responseAs[String]
+          // response should be original
+          resContent shouldBe originalContent
+        }
       }
 
-      // Success to get because of no deletion
-      Get(s"/${fileId}") ~> core.route ~> check {
-        // Get response file content
-        val resContent: String = responseAs[String]
-        // response should be original
-        resContent shouldBe originalContent
-      }
-    }
+      it("should not allow user to delete data which has a delete-key with wrong delete-key") {
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val deleteKey: String = "mykey1234"
+        val wrongKey : String = "hogehoge"
+        val fileId: String =
+          Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
 
-    test("[negative] send/delete with deletable with wrong key") {
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val deleteKey: String = "mykey1234"
-      val wrongKey : String = "hogehoge"
-      val fileId: String =
-        Post(s"/?deletable&delete-key=${deleteKey}").withEntity(originalContent) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
+            fileId
+          }
 
-          fileId
+        // Fail to delete the file
+        Delete(s"/${fileId}?delete-key=${wrongKey}") ~> core.route ~> check {
+          // Status should be NotFound because of wrong key
+          response.status shouldBe StatusCodes.NotFound
         }
 
-      // Fail to delete the file
-      Delete(s"/${fileId}?delete-key=${wrongKey}") ~> core.route ~> check {
-        // Status should be NotFound because of wrong key
-        response.status shouldBe StatusCodes.NotFound
+        // Success to get because of no deletion
+        Get(s"/${fileId}") ~> core.route ~> check {
+          // Get response file content
+          val resContent: String = responseAs[String]
+          // response should be original
+          resContent shouldBe originalContent
+        }
       }
 
-      // Success to get because of no deletion
-      Get(s"/${fileId}") ~> core.route ~> check {
-        // Get response file content
-        val resContent: String = responseAs[String]
-        // response should be original
-        resContent shouldBe originalContent
-      }
-    }
+      it("should allow user to delete data which has get-key by Basic Authentication") {
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val getKey: String = "p4ssw0rd"
 
-    test("[positive] send/delete with Basic Authentication") {
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val getKey: String = "p4ssw0rd"
+        val credentials1 = BasicHttpCredentials("dummy user", getKey)
 
-      val credentials1 = BasicHttpCredentials("dummy user", getKey)
+        val fileId: String =
+          Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
+            // File ID length should be 3
+            fileId.length shouldBe 3
 
-      val fileId: String =
-        Post("/").withEntity(originalContent) ~> addCredentials(credentials1) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
-          // File ID length should be 3
-          fileId.length shouldBe 3
+            fileId
+          }
 
-          fileId
+        // NOTE: Basic Authentication doesn't related to deletion
+        //       related to get file only
+
+        // Delete the file
+        Delete(s"/${fileId}") ~> core.route ~> check {
+          // Status should be OK
+          response.status shouldBe StatusCodes.OK
         }
 
-      // NOTE: Basic Authentication doesn't related to deletion
-      //       related to get file only
-
-      // Delete the file
-      Delete(s"/${fileId}") ~> core.route ~> check {
-        // Status should be OK
-        response.status shouldBe StatusCodes.OK
-      }
-
-      // Fail to get because of deletion
-      Get(s"/${fileId}") ~> core.route ~> check {
-        // The status should be 404
-        response.status shouldBe StatusCodes.NotFound
+        // Fail to get because of deletion
+        Get(s"/${fileId}") ~> core.route ~> check {
+          // The status should be 404
+          response.status shouldBe StatusCodes.NotFound
+        }
       }
     }
 
