@@ -667,7 +667,7 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
         }
       }
 
-      it("allow user to send with File ID length=100000 (too big) and File ID should be truncated to max length") {
+      it("should allow user to send with File ID length=100000 (too big) and File ID should be truncated to max length") {
         val fileContent : String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
         val fileIdLength: Int    = 100000
         val fileId: String =
