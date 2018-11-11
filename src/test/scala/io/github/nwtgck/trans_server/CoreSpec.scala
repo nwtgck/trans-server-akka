@@ -352,58 +352,60 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    test("[positive] send/get by PUT") {
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-      val fileId1: String =
-        Put("/").withEntity(originalContent) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
-          // File ID length should be 3
-          fileId.length shouldBe 3
+    describe("PUT-method sending") {
+      it("should send by PUT and get") {
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+        val fileId1: String =
+          Put("/").withEntity(originalContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
+            // File ID length should be 3
+            fileId.length shouldBe 3
 
-          fileId
+            fileId
+          }
+
+        Get(s"/${fileId1}") ~> core.route ~> check {
+          val resContent: String = responseAs[String]
+          // response should be original
+          resContent shouldBe originalContent
         }
 
-      Get(s"/${fileId1}") ~> core.route ~> check {
-        val resContent: String = responseAs[String]
-        // response should be original
-        resContent shouldBe originalContent
+        val fileId2: String =
+          Put("/hoge.txt").withEntity(originalContent) ~> core.route ~> check {
+            // Get file ID
+            val fileId = responseAs[String].trim
+            // File ID length should be 3
+            fileId.length shouldBe 3
+
+            fileId
+          }
+
+        Get(s"/${fileId2}") ~> core.route ~> check {
+          val resContent: String = responseAs[String]
+          // response should be original
+          resContent shouldBe originalContent
+        }
       }
 
-      val fileId2: String =
-        Put("/hoge.txt").withEntity(originalContent) ~> core.route ~> check {
-          // Get file ID
-          val fileId = responseAs[String].trim
-          // File ID length should be 3
-          fileId.length shouldBe 3
+      it("should allow user to send by PUT specifying File ID and get") {
 
-          fileId
+        val fileId: String = "myfileid123"
+
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+
+        Put(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
+          // Get file ID
+          val resFileId = responseAs[String].trim
+          // Response of File ID should be the specified File ID
+          resFileId shouldBe fileId
         }
 
-      Get(s"/${fileId2}") ~> core.route ~> check {
-        val resContent: String = responseAs[String]
-        // response should be original
-        resContent shouldBe originalContent
-      }
-    }
-
-    test("[positive] send/get by PUT specifying File ID") {
-
-      val fileId: String = "myfileid123"
-
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
-
-      Put(s"/fix/${fileId}").withEntity(originalContent) ~> core.route ~> check {
-        // Get file ID
-        val resFileId = responseAs[String].trim
-        // Response of File ID should be the specified File ID
-        resFileId shouldBe fileId
-      }
-
-      Get(s"/${fileId}") ~> core.route ~> check {
-        val resContent: String = responseAs[String]
-        // response should be original
-        resContent shouldBe originalContent
+        Get(s"/${fileId}") ~> core.route ~> check {
+          val resContent: String = responseAs[String]
+          // response should be original
+          resContent shouldBe originalContent
+        }
       }
     }
 
