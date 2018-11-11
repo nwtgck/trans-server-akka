@@ -911,36 +911,38 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    test("[positive] send/get with secure-char") {
-      val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
+    describe("by using secure-char") {
+      it("should allow user to send by specifying secure-char and return a File ID using secure-char") {
+        val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
 
-      // This value should be big enough for iteration
-      val N = 30
-      var concatedFileId: String = ""
-      for (_ <- 1 to N) {
-        val fileId: String =
-          Post("/?secure-char").withEntity(originalContent) ~> core.route ~> check {
-            // Get file ID
-            val fileId = responseAs[String].trim
-            // Concat file ID
-            concatedFileId += fileId
-            // File ID length should be 3
-            fileId.length shouldBe 3
+        // This value should be big enough for iteration
+        val N = 30
+        var concatedFileId: String = ""
+        for (_ <- 1 to N) {
+          val fileId: String =
+            Post("/?secure-char").withEntity(originalContent) ~> core.route ~> check {
+              // Get file ID
+              val fileId = responseAs[String].trim
+              // Concat file ID
+              concatedFileId += fileId
+              // File ID length should be 3
+              fileId.length shouldBe 3
 
-            fileId
+              fileId
+            }
+
+          Get(s"/${fileId}") ~> core.route ~> check {
+            // Get response file content
+            val resContent: String = responseAs[String]
+            // response should be original
+            resContent shouldBe originalContent
           }
-
-        Get(s"/${fileId}") ~> core.route ~> check {
-          // Get response file content
-          val resContent: String = responseAs[String]
-          // response should be original
-          resContent shouldBe originalContent
         }
-      }
 
-      // Some file ID contains some characters which is not contained in regular candidate chars
-      // Because of "secure-char"
-      concatedFileId.toCharArray.exists(c => !Setting.candidateChars.contains(c)) shouldBe true
+        // Some file ID contains some characters which is not contained in regular candidate chars
+        // Because of "secure-char"
+        concatedFileId.toCharArray.exists(c => !Setting.candidateChars.contains(c)) shouldBe true
+      }
     }
 
     test("[positive] send/get URI") {
