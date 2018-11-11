@@ -117,7 +117,7 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
       }
     }
 
-    test("[positive] send") {
+    it("should allow user to send data") {
       val fileContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
       Post("/").withEntity(fileContent) ~> core.route ~> check {
         // Get file ID
@@ -133,7 +133,7 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
     }
 
 
-    test("[positive] send/get") {
+    it("should allow user to send and get data") {
       val originalContent: String = "this is a file content.\nthis doesn't seem to be a file content, but it is.\n"
       val fileId: String =
         Post("/").withEntity(originalContent) ~> core.route ~> check {
