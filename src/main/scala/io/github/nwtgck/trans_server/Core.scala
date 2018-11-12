@@ -152,9 +152,16 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
         _ <- ioResult match {
           case IOResult(_, Success(_)) =>
             Future.successful(())
-          case IOResult(_, Failure(ex)) =>
-            // Fail because IOResult is failed
-            Future.failed(ex)
+          case IOResult(_, Failure(e)) =>
+            logger.error(s"Error in storing data: ${Util.getStackTraceString(e)}", e)
+            for {
+              // Delete the file
+              deletedFlag <- Future(new File(storeFilePath).delete())
+              // Log
+              _ <- Future.successful(logger.debug(s"File deleted (${storeFilePath}): ${deletedFlag}"))
+              // Fail because IOResult is failed
+              _ <- Future.failed(e)
+            } yield ()
         }
 
         // Create file store object
