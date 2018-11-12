@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.19.2] - 2018-11-13
+### Fixed
+- Fix to delete the file if store process is failed
+
 ## [1.19.1] - 2018-11-12
 ### Fixed
 - Fix to notify an error to user when store process is failed
@@ -152,7 +156,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - Adapt [`sbt-native-packager`](https://github.com/sbt/sbt-native-packager) for [Heroku](https://heroku.com/)
 
 
-[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.1...HEAD
+[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.2...HEAD
+[1.19.2]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.1...v1.19.2
 [1.19.1]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.0...v1.19.1
 [1.19.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.18.0...v1.19.0
 [1.18.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.17.0...v1.18.0
