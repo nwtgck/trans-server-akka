@@ -31,7 +31,7 @@ lazy val root = (project in file(".")).
       // sbt from http://akka.io/docs/
       "com.typesafe.akka" %% "akka-http-core" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
-      "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion,
+      "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
       "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http-jackson" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http-xml" % akkaHttpVersion,
@@ -45,6 +45,6 @@ lazy val root = (project in file(".")).
       "com.github.scopt" %% "scopt" % "3.6.0",
 
       // ScalaTest
-      "org.scalatest" %% "scalatest" % "2.2.6" % "test"
+      "org.scalatest" %% "scalatest" % "2.2.6" % Test
     )
   )
