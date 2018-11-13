@@ -29,7 +29,6 @@ lazy val root = (project in file(".")).
 
     libraryDependencies ++= Seq(
       // sbt from http://akka.io/docs/
-      "com.typesafe.akka" %% "akka-http-core" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
 
