@@ -72,10 +72,21 @@ class CoreSpec extends FunSpec with ScalatestRouteTest with Matchers with Before
         }
       }
 
-      it("should show redirect page if X-Forwarded-Proto header is specified") {
+      it("should redirect page if X-Forwarded-Proto header is specified") {
         Get(s"/") ~> addHeader("X-Forwarded-Proto", "http") ~> core.route ~> check {
           // Status should be "Permanent Redirect"
           status shouldBe StatusCodes.PermanentRedirect
+        }
+      }
+
+      // NOTE: Should test but error, "java.lang.IllegalArgumentException: Illegal HTTP header 'X-Forwarded-Proto': Invalid input ',', expected scheme-char or 'EOI'"
+      if(false) {
+        it("should not redirect page if X-Forwarded-Proto header is https,http,http for Glitch") {
+          Get(s"/") ~> addHeader("X-Forwarded-Proto", "https,http,http") ~> core.route ~> check {
+            // Status should NOT be "Permanent Redirect"
+            // Just check status code
+            status.intValue() shouldBe 200
+          }
         }
       }
 

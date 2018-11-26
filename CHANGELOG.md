@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.19.3] - 2018-11-26
+### Added
+- Support Glitch
+
 ## [1.19.2] - 2018-11-13
 ### Fixed
 - Fix to delete the file if store process is failed

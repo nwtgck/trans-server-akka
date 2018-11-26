@@ -2,14 +2,12 @@ package io.github.nwtgck.trans_server
 
 import java.io.File
 import java.nio.file.StandardOpenOption
+import javax.crypto.Cipher
 
 import akka.actor.ActorSystem
 import akka.event.Logging
-import akka.http.impl.model.parser.HeaderParser
-import javax.crypto.Cipher
 import akka.http.scaladsl.model.Multipart.FormData.BodyPart
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.{HttpOrigin, RawHeader}
 import akka.http.scaladsl.server.directives.Credentials
 import akka.http.scaladsl.server.{Directive0, Route}
 import akka.stream.scaladsl.{Broadcast, Compression, FileIO, Flow, GraphDSL, Keep, RunnableGraph, Sink, Source}
