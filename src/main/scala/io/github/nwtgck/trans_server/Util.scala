@@ -114,7 +114,8 @@ object Util {
 
     extractUri{uri =>
       optionalHeaderValueByName("X-Forwarded-Proto") {
-        case Some(xForwardedProto) if xForwardedProto != "https" =>
+        // NOTE: `xForwardedProto != "https"` should be OK, but Glitch gives like "https,http,http"
+        case Some(xForwardedProto) if !xForwardedProto.contains("https") =>
           redirect(
             uri.copy(scheme = "https"),
             StatusCodes.PermanentRedirect
