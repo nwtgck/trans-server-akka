@@ -1,6 +1,6 @@
 # NOTE: Multi-stage Build
 
-FROM nwtgck/pre-installed-sbt:0.13.18
+FROM nwtgck/pre-installed-sbt:0.13.18 as build
 
 # Copy all things in this repo except files in .dockerignore
 COPY . /trans
@@ -19,7 +19,7 @@ RUN mkdir -p /trans/target/scala-2.11/
 # Copy scripts
 COPY make-keystore.sh docker-entry.sh /trans/
 # Copy artifacts
-COPY --from=0 /trans/target/scala-2.11/trans-server-akka.jar /trans/target/scala-2.11/trans-server-akka.jar
+COPY --from=build /trans/target/scala-2.11/trans-server-akka.jar /trans/target/scala-2.11/trans-server-akka.jar
 
 # Run entry (Run the server)
 ENTRYPOINT ["/trans/docker-entry.sh"]
