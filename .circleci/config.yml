@@ -61,6 +61,19 @@ jobs:
             git submodule update --remote
       # Check whether "docker build" is successful or not
       - run: docker build -t trans-server .
+      - run:
+          name: Working test with Docker image
+          command: |
+            # Run a server
+            docker run -d -p 8080:80 trans-server
+            # Wait for server running
+            sleep 6
+            # Send a "hello, world"
+            FILE_ID1=`curl --data-binary 'hello, world' localhost:8080`
+            # Get data
+            RES1=`curl localhost:8080/$FILE_ID1`
+            # Test whether sent data and got one are the same or not
+            [ "$RES1" = "hello, world" ]
 
 workflows:
   version: 2
