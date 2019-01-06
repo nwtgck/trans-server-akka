@@ -18,6 +18,12 @@ jobs:
     
     steps:
       - checkout
+      # (from: https://discuss.circleci.com/t/can-not-get-submodules-to-clone-properly/22120/2)
+      - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule init
+            git submodule update --remote
 
       # Download and cache dependencies
       - restore_cache:
