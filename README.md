@@ -91,7 +91,7 @@ Data will be stored in `$PWD/trans-db` on your host machine. (Currently file-bas
 The following example runs a server on 80 port.
 ```sh
 $ cd <this-project>
-$ ./make-keystore.bash
+$ ./make-keystore.sh
 $ sbt "run-main io.github.nwtgck.trans_server.Main --http-port=8282"
 ```
 
@@ -101,7 +101,7 @@ $ sbt "run-main io.github.nwtgck.trans_server.Main --http-port=8282"
 
 ```sh
 $ cd <this-project>
-$ ./make-keystore.bash
+$ ./make-keystore.sh
 ```
 
 
