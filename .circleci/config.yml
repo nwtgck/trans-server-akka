@@ -15,7 +15,7 @@ jobs:
       # Customize the JVM maximum heap limit
       JVM_OPTS: -Xmx3200m
       TERM: dumb
-    
+
     steps:
       - checkout
       # (from: https://discuss.circleci.com/t/can-not-get-submodules-to-clone-properly/22120/2)
