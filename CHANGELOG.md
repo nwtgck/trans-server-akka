@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.19.4] - 2019-01-06
+### Changed
+- Update dependencies
+- Use Alpine-based docker image
+
 ## [1.19.3] - 2018-11-26
 ### Added
 - Support Glitch
@@ -160,7 +165,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - Adapt [`sbt-native-packager`](https://github.com/sbt/sbt-native-packager) for [Heroku](https://heroku.com/)
 
 
-[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.2...HEAD
+[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.4...HEAD
+[1.19.4]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.3...v1.19.4
+[1.19.3]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.2...v1.19.3
 [1.19.2]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.1...v1.19.2
 [1.19.1]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.0...v1.19.1
 [1.19.0]: https://github.com/nwtgck/trans-server-akka/compare/v1.18.0...v1.19.0
