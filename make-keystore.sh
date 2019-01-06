@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /bin/sh
 
 # Generate a keystore in current working directory
 # from: https://www.glamenv-septzen.net/view/1075

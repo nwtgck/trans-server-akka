@@ -65,7 +65,7 @@ jobs:
           name: Working test with Docker image
           command: |
             # Run a server
-            docker run -d -p 8080:80 trans-server
+            docker run -d -p 8080:80 trans-server --http-port=80
             # Wait for server running
             sleep 6
             # Send a "hello, world"
