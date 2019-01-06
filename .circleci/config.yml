@@ -1,0 +1,83 @@
+# Scala CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/sample-config/ for more details
+#
+version: 2
+jobs:
+  build_and_test:
+    docker:
+      # specify the version you desire here
+      - image: circleci/openjdk:8-jdk
+
+    working_directory: ~/repo
+
+    environment:
+      # Customize the JVM maximum heap limit
+      JVM_OPTS: -Xmx3200m
+      TERM: dumb
+
+    steps:
+      - checkout
+      # (from: https://discuss.circleci.com/t/can-not-get-submodules-to-clone-properly/22120/2)
+      - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule init
+            git submodule update --remote
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "build.sbt" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+
+      - run: cat /dev/null | sbt test:compile
+
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: v1-dependencies--{{ checksum "build.sbt" }}
+
+      - run:
+          name: test
+          command: cat /dev/null | sbt test:test
+      - run:
+          name: Check whether .jar file is created
+          command: sbt assembly
+      - run:
+          name: Check whether sbt-dist works well
+          command: sbt dist
+
+  docker_test:
+    machine: true
+    steps:
+      - checkout
+      # (from: https://discuss.circleci.com/t/can-not-get-submodules-to-clone-properly/22120/2)
+      - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule init
+            git submodule update --remote
+      # Check whether "docker build" is successful or not
+      - run: docker build -t trans-server .
+      - run:
+          name: Working test with Docker image
+          command: |
+            # Run a server
+            docker run -d -p 8080:80 trans-server --http-port=80
+            # Wait for server running
+            sleep 6
+            # Send a "hello, world"
+            FILE_ID1=`curl --data-binary 'hello, world' localhost:8080`
+            # Get data
+            RES1=`curl localhost:8080/$FILE_ID1`
+            # Test whether sent data and got one are the same or not
+            [ "$RES1" = "hello, world" ]
+
+workflows:
+  version: 2
+  scala_test:
+    jobs:
+      - build_and_test
+      - docker_test

@@ -71,7 +71,7 @@ You can choose any ways you want bellow.
 [![Docker Automated build](https://img.shields.io/docker/automated/nwtgck/trans-server-akka.svg)](https://hub.docker.com/r/nwtgck/trans-server-akka/)
 
 ```bash
-docker run -p 8080:80 nwtgck/trans-server-akka
+docker run -p 8080:8181 nwtgck/trans-server-akka
 ```
 
 Then you can go http://localhost:8080/
@@ -81,7 +81,7 @@ Then you can go http://localhost:8080/
 You can also run the following command for **daemonize** and **data persistence**.
 
 ```bash
-docker run -d -p 8080:80 -v $PWD/trans-db:/trans/db --restart=always nwtgck/trans-server-akka
+docker run -d -p 8080:8181 -v $PWD/trans-db:/trans/db --restart=always nwtgck/trans-server-akka
 ```
 
 Data will be stored in `$PWD/trans-db` on your host machine. (Currently file-base H2 database is used, and files sent are stored as compressed and encrypted files)
@@ -91,7 +91,7 @@ Data will be stored in `$PWD/trans-db` on your host machine. (Currently file-bas
 The following example runs a server on 80 port.
 ```sh
 $ cd <this-project>
-$ ./make-keystore.bash
+$ ./make-keystore.sh
 $ sbt "run-main io.github.nwtgck.trans_server.Main --http-port=8282"
 ```
 
@@ -101,7 +101,7 @@ $ sbt "run-main io.github.nwtgck.trans_server.Main --http-port=8282"
 
 ```sh
 $ cd <this-project>
-$ ./make-keystore.bash
+$ ./make-keystore.sh
 ```
 
 

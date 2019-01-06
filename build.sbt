@@ -2,11 +2,11 @@ import sbtassembly.AssemblyPlugin.autoImport.assemblyJarName
 
 name := "trans-server-akka"
 
-version := "1.19.3"
+version := "1.19.4"
 
 scalaVersion := "2.11.12"
 
-val akkaHttpVersion = "10.0.14"
+val akkaHttpVersion = "10.0.15"
 
 lazy val root = (project in file(".")).
   enablePlugins(BuildInfoPlugin, JavaAppPackaging).
