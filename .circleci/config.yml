@@ -49,8 +49,22 @@ jobs:
           name: Check whether sbt-dist works well
           command: sbt dist
 
+  docker_test:
+    machine: true
+    steps:
+      - checkout
+      # (from: https://discuss.circleci.com/t/can-not-get-submodules-to-clone-properly/22120/2)
+      - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule init
+            git submodule update --remote
+      # Check whether "docker build" is successful or not
+      - run: docker build -t trans-server .
+
 workflows:
   version: 2
   scala_test:
     jobs:
       - build_and_test
+      - docker_test
