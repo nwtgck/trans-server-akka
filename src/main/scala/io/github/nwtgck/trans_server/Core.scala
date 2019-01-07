@@ -436,10 +436,10 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
                       StatusCodes.TemporaryRedirect
                     )
                   case Failure(ex) =>
-                    complete(StatusCodes.BadRequest, s"Error in URI parse\n")
+                    complete(StatusCodes.BadRequest, "Error in URI parse\n")
                 }
               case Failure(ex) =>
-                complete(StatusCodes.InternalServerError, s"Unexpected error in redirection\n")
+                complete(StatusCodes.InternalServerError, "Unexpected error in redirection\n")
             }
           } else {
             complete(StatusCodes.BadRequest, s"URI whose length is ${fileStore.rawLength} is too long. Max length is ${Setting.MaxRedirectionUriLength}.\n")
@@ -512,7 +512,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
                                     responseGenerator(fileStore, getFileSource(getKey + Setting.FileEncryptionKey))
                                   case None =>
                                     logger.error("Critical Error: getting password of Basic Authentication (This will never happen)")
-                                    complete(StatusCodes.InternalServerError, s"Server error in Basic Authentication\n")
+                                    complete(StatusCodes.InternalServerError, "Server error in Basic Authentication\n")
                                 }
                               }
                             }
@@ -524,7 +524,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
                       }
 
                     case _ =>
-                      complete(StatusCodes.InternalServerError, s"Server error in decrement nGetLimit\n")
+                      complete(StatusCodes.InternalServerError, "Server error in decrement nGetLimit\n")
                   }
                 }
               } else {
@@ -655,7 +655,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
                 case Success(_) =>
                   complete("Deleted successfully\n")
                 case _ =>
-                  complete(StatusCodes.InternalServerError, s"Server error in delete a file\n")
+                  complete(StatusCodes.InternalServerError, "Server error in delete a file\n")
               }
             } else {
               complete(StatusCodes.NotFound, s"File ID '${fileId.value}' is not found\n")
