@@ -123,7 +123,7 @@ object Main {
           }
         } yield ()).onComplete{
           case Success(_) =>
-            logger.info(s"Running server!")
+            logger.info("Running server!")
           case Failure(e) =>
             logger.error(s"Error in running server\n${Util.getStackTraceString(e)}", e)
         }
