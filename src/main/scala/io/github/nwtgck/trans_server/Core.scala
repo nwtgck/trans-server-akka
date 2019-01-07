@@ -89,7 +89,7 @@ class Core(db: Database, fileDbPath: String, enableTopPageHttpsRedirect: Boolean
 
         // Calc length of ByteString
         val lengthSink   : Sink[ByteString, Future[Long]] =
-          Sink.fold(0l)(_ + _.length)
+          Sink.fold(0L)(_ + _.length)
 
         // Sink for calculating MD5
         val md5Sink: Sink[ByteString, Future[Digest[Algorithm.`MD5`.type]]] =
