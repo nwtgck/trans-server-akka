@@ -1,4 +1,4 @@
-# trans - Transmit a file by only standard commands
+# trans-server
 
 Transmit files by using **only common Uninx/Linux commands, `curl` or `wget`**
 
