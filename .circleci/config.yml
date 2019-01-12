@@ -44,10 +44,14 @@ jobs:
           command: cat /dev/null | sbt test:test
       - run:
           name: Check whether .jar file is created
-          command: sbt assembly
+          command: |
+            sbt assembly
+            test -e target/scala-2.11/trans-server-akka.jar
       - run:
           name: Check whether sbt-dist works well
-          command: sbt dist
+          command: |
+            sbt dist
+            test -e target/universal/trans-server-akka.zip
 
   docker_test:
     machine: true
