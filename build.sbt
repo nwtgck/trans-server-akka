@@ -2,7 +2,7 @@ import sbtassembly.AssemblyPlugin.autoImport.assemblyJarName
 
 name := "trans-server-akka"
 
-version := "1.19.5"
+version := "1.19.6"
 
 scalaVersion := "2.11.12"
 
@@ -41,6 +41,6 @@ lazy val root = (project in file(".")).
       "com.github.scopt" %% "scopt" % "3.6.0",
 
       // ScalaTest
-      "org.scalatest" %% "scalatest" % "2.2.6" % Test
+      "org.scalatest" %% "scalatest" % "3.0.5" % Test
     )
   )
