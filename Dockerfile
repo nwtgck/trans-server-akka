@@ -1,6 +1,6 @@
 # NOTE: Multi-stage Build
 
-FROM nwtgck/pre-installed-sbt:0.13.18 as build
+FROM nwtgck/pre-installed-sbt:1.2.8 as build
 
 # Copy all things in this repo except files in .dockerignore
 COPY . /trans
