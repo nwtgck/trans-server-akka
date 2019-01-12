@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.19.6] - 2019-01-12
+### Changed
+- Update dependencies
+
 ## [1.19.5] - 2019-01-08
 ### Changed
 - Use openjdk:8-alpine as base Docker image
@@ -169,7 +173,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - Adapt [`sbt-native-packager`](https://github.com/sbt/sbt-native-packager) for [Heroku](https://heroku.com/)
 
 
-[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.5...HEAD
+[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.6...HEAD
+[1.19.6]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.5...v1.19.6
 [1.19.5]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.4...v1.19.5
 [1.19.4]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.3...v1.19.4
 [1.19.3]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.2...v1.19.3
