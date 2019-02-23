@@ -2,7 +2,7 @@ import sbtassembly.AssemblyPlugin.autoImport.assemblyJarName
 
 name := "trans-server-akka"
 
-version := "1.19.6"
+version := "1.19.7"
 
 scalaVersion := "2.11.12"
 
@@ -35,7 +35,7 @@ lazy val root = (project in file(".")).
       // Slick
       "com.typesafe.slick" %% "slick" % "3.1.1",
       "org.slf4j" % "slf4j-nop" % "1.7.25",
-      "com.h2database" % "h2" % "1.4.197",
+      "com.h2database" % "h2" % "1.4.198",
 
       // scopt
       "com.github.scopt" %% "scopt" % "3.6.0",

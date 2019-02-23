@@ -1,6 +1,6 @@
 # trans-server
 
-Transmit files by using **only common Uninx/Linux commands, `curl` or `wget`**
+Transmit files by using **only common Unix/Linux commands, `curl` or `wget`**
 
 | branch | TravisCI | CircleCI | Coverage |
 | --- | --- | --- | --- |
