@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [1.19.8] - 2019-03-14
+### Changed
+- Update h2 database to 1.4.199
+- Update dependencies
+
 ## [1.19.7] - 2019-02-23
 ### Changed
 - Update h2 database to 1.4.198
@@ -177,7 +182,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 - Adapt [`sbt-native-packager`](https://github.com/sbt/sbt-native-packager) for [Heroku](https://heroku.com/)
 
 
-[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.7...HEAD
+[Unreleased]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.8...HEAD
+[1.19.8]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.7...v1.19.8
 [1.19.7]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.6...v1.19.7
 [1.19.6]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.5...v1.19.6
 [1.19.5]: https://github.com/nwtgck/trans-server-akka/compare/v1.19.4...v1.19.5
