@@ -41,6 +41,6 @@ lazy val root = (project in file(".")).
       "com.github.scopt" %% "scopt" % "3.6.0",
 
       // ScalaTest
-      "org.scalatest" %% "scalatest" % "3.0.6" % Test
+      "org.scalatest" %% "scalatest" % "3.0.7" % Test
     )
   )
