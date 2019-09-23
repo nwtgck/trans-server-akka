@@ -11,7 +11,7 @@ RUN sbt assembly
 
 
 # Open JDK 8 - Alpine
-FROM openjdk:8-alpine
+FROM openjdk:13-alpine
 LABEL maintainer="Ryo Ota <nwtgck@gmail.com>"
 
 # Make directories
