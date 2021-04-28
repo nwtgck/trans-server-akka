@@ -1,0 +1,26 @@
+version: 2
+updates:
+- package-ecosystem: gitsubmodule
+  directory: "/"
+  schedule:
+    interval: daily
+    timezone: Asia/Tokyo
+  open-pull-requests-limit: 99
+  reviewers:
+  - nwtgck
+  assignees:
+  - nwtgck
+- package-ecosystem: docker
+  directory: "/"
+  schedule:
+    interval: daily
+    timezone: Asia/Tokyo
+  open-pull-requests-limit: 99
+  reviewers:
+  - nwtgck
+  assignees:
+  - nwtgck
+  ignore:
+  - dependency-name: openjdk
+    versions:
+    - 15.pre.alpine
